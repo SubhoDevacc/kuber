@@ -18,6 +18,7 @@ import {
     MemberStatus
 } from "./CircleTypes.sol";
 import {KuberCircle} from "../KuberCircle.sol";
+import {Governance} from "./Governance.sol";
 import {Invest} from "./Invest.sol";
 import {Loans} from "./Loans.sol";
 import {Weights} from "./Weights.sol";
@@ -39,8 +40,10 @@ library Waterfall {
         m.debtLoanId = id.toUint32();
         $.saverPot += p1;
         if (debt == 0) {
-            // R-N2: savings covered everything and no fine or penalty is owed, so the member is not paused.
-            Weights.changeSavings($, b, -SafeCast.toInt256(fromB + p1), k);
+            // R-N2: savings covered everything and no fine or penalty is owed, so the member is not paused. Dated
+            // after everything accrued (CR-01): part of the free savings may count only from after k (a catch-up
+            // made while settle(k) was pending), so back-filling the drop over k..last could go below weight 0.
+            Weights.changeSavings($, b, -SafeCast.toInt256(fromB + p1), Math.max(k, uint256(m.lastAccrual) + 1));
             // The same cooldown as a repaid loan (Loans._close); k <= totalEpochs inside settle(k).
             m.cooldownUntil = (k + $.fixedParams.cooldownEpochs).toUint8();
             return;
@@ -48,7 +51,8 @@ library Waterfall {
         // Removed first: a suspended weight is discarded, so the borrower's own drop needs no N-1 back-fill.
         Weights.removeFromActive($, b, k, MemberStatus.Suspended);
         Weights.debitSuspended($, b, fromB + p1);
-        // M6 adds here: drop the member's open votes, clear the manager (06-CONTEXT D-05, D-14).
+        Governance.dropVotes($, b);
+        Governance.clearManager($, b);
         // Trusted registry fixed at init; neither call can revert for an authorized circle.
         $.registry.recordSuspension(b, m.sponsor);
         $.registry.addDebt(b);
@@ -88,6 +92,16 @@ library Waterfall {
         external
     {
         _freed($, member, freed, e, inSettlement);
+    }
+
+    /// @notice KuberCircle.applyFreed (R-N3 exception): a Suspended member's free savings pay their own backers'
+    /// losses, then penalty, credited at the clock epoch; a no-op when neither is owed or nothing is free.
+    function applyFreeSavings(CircleStorage.Layout storage $, address member, uint256 clock) external {
+        if ($.status != CircleStatus.Active) revert IKuberCircleErrors.NotActive();
+        Member storage m = $.members[member];
+        // Only a Suspended member can owe this circle while it is Active (D-14 reinstates at debt 0).
+        if (m.status != MemberStatus.Suspended) revert IKuberCircleErrors.NoDebt();
+        _freed($, member, m.savings - m.pledgedOut, clock, false);
     }
 
     /// @notice What `person` still owes this circle for their latest defaulted loan.

@@ -19,6 +19,7 @@ uint256 constant MAX_EXTRA = 1_000;
 uint256 constant MAX_VOUCHERS = 10;
 uint256 constant MAX_AGREERS = 10;
 uint256 constant JOINS_PER_EPOCH = 1;
+uint256 constant MAX_OPEN_JOINS = 5;
 
 enum CircleStatus {
     Forming,
@@ -63,6 +64,15 @@ enum ProposalKind {
     Manager,
     Kick,
     Join
+}
+
+enum ProposalStatus {
+    None,
+    Open,
+    Passed,
+    Failed,
+    Applied,
+    Dropped
 }
 
 enum Window {
@@ -169,6 +179,20 @@ struct Loan {
     uint8 lastCollectEpoch;
 }
 
+// Rule uses `field` (the RuleParams index) and `value`; Manager, Kick, Join use `target`; Allocation uses `alloc`.
+struct Proposal {
+    ProposalKind kind;
+    ProposalStatus status;
+    uint8 epoch;
+    uint8 field;
+    uint16 value;
+    uint16 yes;
+    uint16 no;
+    address proposer;
+    address target;
+    Alloc alloc;
+}
+
 library CircleStorage {
     struct Layout {
         KuberRegistry registry;
@@ -213,6 +237,36 @@ library CircleStorage {
         // Pending request ids in ascending id order, which is D-07's oldest-first order (ids and request epochs
         // only grow); at most one per member.
         uint32[] pendingIds;
+        // The fund manager, 0 if none (06-04).
+        address manager;
+        // Target of the open Kick; it cannot request or back while set (D-07, 06-02).
+        address kickTarget;
+        // Bit f: a Rule proposal on field f is open; bit 9 Allocation, bit 10 Manager appoint, bit 11 Kick, bit 12
+        // Manager fire (R-J2: firing has its own slot).
+        uint16 openMask;
+        // Open Join proposals (06-03).
+        uint8 openJoins;
+        // First approvedJoins entry not yet admitted or dropped (06-03).
+        uint16 joinHead;
+        uint256 proposalCount;
+        // Proposals created in the current epoch, oldest first; every settlement tallies and empties it.
+        uint32[] openIds;
+        // Passed Join proposals, oldest approval first (06-03).
+        uint32[] approvedJoins;
+        // Members with a pending leave, one entry each (06-02).
+        address[] leaveQueue;
+        mapping(uint256 => Proposal) proposals;
+        // 1 yes, 2 no.
+        mapping(uint256 => mapping(address => uint8)) ballots;
+        // 1 applied, 2 has an open or approved Join (06-03).
+        mapping(address => uint8) applicants;
+        // 06-03.
+        mapping(address => bool) hasSponsored;
+        // R-J2: the last epoch in which the member opened a proposal (one per member per round, a sponsor's Join
+        // included).
+        mapping(address => uint8) lastProposedEpoch;
+        // R-J2: the epoch in which no Kick on this member may be proposed, the round after a failed Kick (06-02).
+        mapping(address => uint8) kickBlockedEpoch;
     }
 }
 
@@ -286,6 +340,26 @@ interface IKuberCircleErrors {
     error GroupLoss();
     error NoDebt();
     error CallerNotCircle();
+    error InvalidProposal();
+    error InvalidRuleField();
+    error ProposalOpen();
+    error VotingClosed();
+    error AlreadyVoted();
+    error AlreadyProposed();
+    error HasPledges();
+    error NoLeavePending();
+    error InvalidTarget();
+    error TargetCannotVote();
+    error KickPending();
+    error KickCooldown();
+    error JoinClosed();
+    error AlreadyApplied();
+    error NotApplicant();
+    error AlreadySponsored();
+    error TooManyJoins();
+    error AtMembershipCap();
+    error OnlyManager();
+    error IsManager();
 }
 
 interface IKuberCircleEvents {

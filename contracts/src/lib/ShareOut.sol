@@ -42,11 +42,17 @@ library ShareOut {
         uint256 n = $.memberList.length;
         for (uint256 i; i < n; ++i) {
             address member = $.memberList[i];
-            MemberStatus st = $.members[member].status;
+            Member storage m = $.members[member];
+            MemberStatus st = m.status;
             if (st != MemberStatus.Active && st != MemberStatus.Suspended) continue;
             // D-17: a member still paused at the end leaves; `!=` only (Slither's incorrect-equality on `==`).
-            if (st != MemberStatus.Active) $.registry.recordLeave(member);
-            else $.registry.recordComplete(member);
+            if (st != MemberStatus.Active) {
+                $.registry.recordLeave(member);
+                continue;
+            }
+            $.registry.recordComplete(member);
+            // D-13: a member admitted mid-cycle who completes credits their sponsor.
+            if (m.sponsor != address(0)) $.registry.recordSponsoredCompleted(m.sponsor);
         }
     }
 

@@ -59,6 +59,15 @@ library Weights {
         _accrueSaver($, e);
     }
 
+    /// @notice The epoch to which removeFromActive accrues a member and both accumulators at settlement `e`, so a
+    /// quote read before the removal sees the same weights.
+    function syncEpoch(CircleStorage.Layout storage $, Member storage m, uint256 e) internal view returns (uint256) {
+        // Every `last` is <= totalEpochs, so this is too, and it is >= every last it must line up.
+        return Math.max(
+            Math.min(e, $.fixedParams.totalEpochs), Math.max(m.lastAccrual, Math.max($.wActiveLast, $.wSaverLast))
+        );
+    }
+
     /// @notice Takes an Active member out of W_active (and W_saver if never borrowed); a no-op otherwise.
     /// sTotal keeps the member's savings (R-N).
     function removeFromActive(CircleStorage.Layout storage $, address member, uint256 e, MemberStatus newStatus)
@@ -66,10 +75,7 @@ library Weights {
     {
         Member storage m = $.members[member];
         if (m.status != MemberStatus.Active) return;
-        // Every `last` is <= totalEpochs, so upTo is too, and it is >= every last it must line up.
-        uint256 upTo = Math.max(
-            Math.min(e, $.fixedParams.totalEpochs), Math.max(m.lastAccrual, Math.max($.wActiveLast, $.wSaverLast))
-        );
+        uint256 upTo = syncEpoch($, m, e);
         _accrueMember(m, upTo);
         accrueGlobal($, upTo);
         $.wActive -= m.weight;

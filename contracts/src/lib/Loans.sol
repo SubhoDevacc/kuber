@@ -180,7 +180,7 @@ library Loans {
         m.activeLoanId = 0;
         // Past the cycle no request is possible, so the cap only keeps it in uint8.
         m.cooldownUntil = (Math.min(c, $.fixedParams.totalEpochs) + $.fixedParams.cooldownEpochs).toUint8();
-        Backing.release($, loan, c, inSettlement);
+        Backing.release($, loan, c, inSettlement, true);
         emit IKuberCircleEvents.LoanRepaid(id, onTime);
         // Trusted registry fixed at init.
         $.registry.recordRepaid(borrower, onTime);

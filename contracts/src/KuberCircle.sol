@@ -17,13 +17,17 @@ import {
     Loan,
     Member,
     MemberStatus,
+    Proposal,
+    ProposalKind,
     RuleParams,
     Window
 } from "./lib/CircleTypes.sol";
 import {Backing} from "./lib/Backing.sol";
 import {Forming} from "./lib/Forming.sol";
+import {Governance} from "./lib/Governance.sol";
 import {Invest} from "./lib/Invest.sol";
 import {Loans} from "./lib/Loans.sol";
+import {Membership} from "./lib/Membership.sol";
 import {Queue} from "./lib/Queue.sol";
 import {Settle} from "./lib/Settle.sol";
 import {ShareOut} from "./lib/ShareOut.sol";
@@ -47,6 +51,7 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         uint256 cursor;
         FixedParams fixedParams;
         RuleParams rules;
+        address manager;
     }
 
     struct PublicSummary {
@@ -209,6 +214,49 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         Backing.unback($, id);
     }
 
+    /// @notice Action class (R-F): an Active member with minSaveEpochs paid proposes a Rule or Allocation change (D-02).
+    function propose(ProposalKind kind, bytes calldata data) external returns (uint256) {
+        _checkAction();
+        return Governance.propose($, kind, data, currentEpoch());
+    }
+
+    /// @notice Vote class (R-F): OPEN or LOCK, no settlement pending; one vote per Active member (D-04).
+    function vote(uint256 id, bool yes) external {
+        _checkVote();
+        Governance.vote($, id, yes);
+    }
+
+    /// @notice Action class (R-F): an Active member with no loan, request, or pledges leaves at the next settlement
+    /// with the exit value minus the exit fee locked now (D-08, R-E).
+    function requestLeave() external {
+        _checkAction();
+        Membership.requestLeave($);
+    }
+
+    /// @notice Action class (R-F): withdraws the caller's pending leave (D-08).
+    function cancelLeave() external {
+        _checkAction();
+        Membership.cancelLeave($);
+    }
+
+    /// @notice Action class (R-F): a verified, debt-free person under the 5-circle cap applies to join (D-11).
+    function applyToJoin() external {
+        _checkAction();
+        Membership.applyToJoin($, currentEpoch());
+    }
+
+    /// @notice Action class (R-F): an eligible member sponsors an applicant, opening their Join proposal (D-12).
+    function sponsor(address applicant) external returns (uint256) {
+        _checkAction();
+        return Membership.sponsor($, applicant, currentEpoch());
+    }
+
+    /// @notice What the member would be paid on leaving at the next settlement with today's numbers, and the fee
+    /// (D-10); zeros for a non-Active member.
+    function exitValueOf(address member) external view returns (uint256 payout, uint256 fee) {
+        return Membership.exitValueOf($, member);
+    }
+
     /// @notice Ended only, once per Active or Suspended member: the final share-out from the frozen numbers (D-20,
     /// R-F, D-17), fully subject to the lien.
     function withdraw() external nonReentrant {
@@ -291,6 +339,7 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         s.cursor = $.cursor;
         s.fixedParams = $.fixedParams;
         s.rules = $.rules;
+        s.manager = $.manager;
     }
 
     /// @notice Live totals while running (weights through `settledEpoch`, yieldPot = V - S_total, R-R); the frozen
@@ -338,12 +387,27 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         return $.pendingIds;
     }
 
+    function getProposal(uint256 id) external view returns (Proposal memory) {
+        return $.proposals[id];
+    }
+
+    /// @notice Proposals open for voting this epoch, oldest first.
+    function openProposals() external view returns (uint32[] memory) {
+        return $.openIds;
+    }
+
     /// @notice Pay class (R-F): repays up to `amt` of the caller's debt here in the D-13 order; at 0 the member is
     /// reinstated while the circle is Active (D-14).
     function repayDebt(uint256 amt) external nonReentrant {
         if ($.status != CircleStatus.Active && $.status != CircleStatus.Ended) revert NotActive();
         if (Waterfall.repay($, msg.sender, amt, currentEpoch()) != 0) return;
         revert NoDebt();
+    }
+
+    /// @notice Pay class (R-F, R-N3), anyone: applies a paused member's free savings (a pledge released at expiry)
+    /// to their backers' losses, then penalty. Moves only that member's savings.
+    function applyFreed(address member) external nonReentrant {
+        Waterfall.applyFreeSavings($, member, currentEpoch());
     }
 
     /// @notice Pay class (R-F, D-16): a registry-listed circle pays `person`'s debt here out of a payout (the lien);

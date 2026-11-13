@@ -250,6 +250,37 @@ contract DebtTest is BackingTestBase {
         z.requestToJoin();
     }
 
+    /// @dev M5 review item 1: p requests 100e6 over 1 in x in epoch 7 while clean; y's settle(7) pauses p (open
+    /// debt), so x's settle(7) in the same block must not fund it (lien-free proceeds otherwise). The request keeps its
+    /// place; once the debt in y is repaid x funds it at settle(8). Left unpaid it expires at settle(9).
+    function test_T_DF_7_requestNotFundedWhileBorrowerHasOpenDebt() public {
+        (KuberCircle x, KuberCircle y, address p,,) = _xy(10, 7, 1);
+        assertTrue(registry.hasOpenDebt(p), "p defaulted in y");
+        Loan memory l = x.getLoan(1);
+        assertEq(uint256(l.status), uint256(LoanStatus.Pending), "not funded at x's settle(7)");
+        assertEq(l.requestedEpoch, 7, "requested while clean");
+        assertEq(l.age, 1, "aged like any skipped request");
+        assertEq(x.getQueue().length, 1, "keeps its place");
+        assertEq(x.getMember(p).pendingRequestId, 1, "still pending");
+        assertEq(x.getMember(p).claimable, 0, "no proceeds");
+        uint256 snap = vm.snapshotState();
+        _settleAt(x, 9);
+        assertEq(uint256(x.getLoan(1).status), uint256(LoanStatus.Pending), "still skipped at settle(8)");
+        _settleAt(x, 10);
+        assertEq(uint256(x.getLoan(1).status), uint256(LoanStatus.Expired), "expires normally at settle(9)");
+        vm.revertToState(snap);
+        vm.startPrank(p);
+        usdc.approve(address(y), 5_000e6);
+        y.repayDebt(1_000e6);
+        vm.stopPrank();
+        assertFalse(registry.hasOpenDebt(p), "debt cleared");
+        _settleAt(x, 9);
+        l = x.getLoan(1);
+        assertEq(uint256(l.status), uint256(LoanStatus.Funded), "funded at settle(8)");
+        assertEq(l.fundedEpoch, 8, "fundedEpoch");
+        assertEq(x.getMember(p).claimable, 100e6, "proceeds");
+    }
+
     // ---------------------------------------------------------------- R-N3
 
     /// @dev The design check's Order scenario: L1b's loan closes in the same settle(7) that pauses M (M backs L1).

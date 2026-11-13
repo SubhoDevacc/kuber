@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {KuberCircle} from "../../src/KuberCircle.sol";
 import {Invest} from "../../src/lib/Invest.sol";
+import {Membership} from "../../src/lib/Membership.sol";
 import {Weights} from "../../src/lib/Weights.sol";
 
 /// @dev Test-only: probes for the action/vote guards and exact weight reads at any epoch (D-15).
@@ -55,6 +56,12 @@ contract KuberCircleHarness is KuberCircle {
 
     function loanCount() external view returns (uint256) {
         return $.loanCount;
+    }
+
+    /// @notice Settlement step 2's membership half alone, so a test can read V − sTotal right before and after the
+    /// exits without the rebalance's vault rounding.
+    function applyMembership(uint256 k, uint256 kickId) external {
+        Membership.applyStep($, k, kickId);
     }
 
     /// @dev Stands in for M6's requestLeave so T-LN-1 can cover R-M now.

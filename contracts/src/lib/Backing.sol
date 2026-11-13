@@ -35,6 +35,7 @@ library Backing {
         // Also rejects the borrower, whose pending request is this one, so no separate borrower error is needed.
         if (m.pendingRequestId != 0) revert IKuberCircleErrors.HasPendingRequest();
         if (m.leavePending) revert IKuberCircleErrors.LeavePending();
+        if (msg.sender == $.kickTarget) revert IKuberCircleErrors.KickPending();
         if ($.registry.hasOpenDebt(msg.sender)) revert IKuberCircleErrors.HasOpenDebt();
         if (amt == 0) revert IKuberCircleErrors.ZeroAmount();
         if (amt > m.savings - m.pledgedOut) revert IKuberCircleErrors.ExceedsFreeSavings();
@@ -66,6 +67,8 @@ library Backing {
     function unback(CircleStorage.Layout storage $, uint256 id) external {
         Loan storage loan = $.loans[id];
         if (loan.status != LoanStatus.Pending) revert IKuberCircleErrors.NotPending();
+        // WR-01: a paused member's pledge is freed only by release, which repays their backers (R-N3).
+        if ($.members[msg.sender].status != MemberStatus.Active) revert IKuberCircleErrors.NotMember();
         Pledge[] storage bs = loan.vouchers;
         uint256 i = _find(bs, msg.sender);
         if (i == NONE) {
@@ -85,19 +88,24 @@ library Backing {
 
     /// @notice Called once per loan at its terminal status change (cancel, expiry, full repayment): every backer's
     /// pledge is freed; the entries stay as history (05-CONTEXT D-04). `e` is the clock epoch, or k inside settle(k);
-    /// a paused backer's freed pledge pays their own backers at once (R-N3).
-    function release(CircleStorage.Layout storage $, Loan storage loan, uint256 e, bool inSettlement) internal {
-        _release($, loan.vouchers, e, inSettlement);
-        _release($, loan.agreers, e, inSettlement);
+    /// with `rn3` a paused backer's freed pledge pays their own backers at once (R-N3). Expiry passes false (the
+    /// R-N3 exception: it runs in the unsplittable completing call), leaving it to applyFreed and finalize.
+    function release(CircleStorage.Layout storage $, Loan storage loan, uint256 e, bool inSettlement, bool rn3)
+        internal
+    {
+        _release($, loan.vouchers, e, inSettlement, rn3);
+        _release($, loan.agreers, e, inSettlement, rn3);
     }
 
-    function _release(CircleStorage.Layout storage $, Pledge[] storage bs, uint256 e, bool inSettlement) private {
+    function _release(CircleStorage.Layout storage $, Pledge[] storage bs, uint256 e, bool inSettlement, bool rn3)
+        private
+    {
         for (uint256 i; i < bs.length; ++i) {
             address backer = bs[i].backer;
             uint256 amt = bs[i].amount;
             Member storage m = $.members[backer];
             m.pledgedOut -= amt.toUint128();
-            if (m.status == MemberStatus.Suspended) Waterfall.applyFreed($, backer, amt, e, inSettlement);
+            if (rn3 && m.status == MemberStatus.Suspended) Waterfall.applyFreed($, backer, amt, e, inSettlement);
         }
     }
 

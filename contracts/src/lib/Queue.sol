@@ -62,6 +62,7 @@ library Queue {
         if (extraBps > MAX_EXTRA) revert IKuberCircleErrors.InvalidExtra();
         if (amount == 0) revert IKuberCircleErrors.ZeroAmount();
         if (m.leavePending) revert IKuberCircleErrors.LeavePending();
+        if (msg.sender == $.kickTarget) revert IKuberCircleErrors.KickPending();
         if ($.registry.hasOpenDebt(msg.sender)) revert IKuberCircleErrors.HasOpenDebt();
         id = ++$.loanCount;
         uint256 own = Math.min(amount, uint256(m.savings - m.pledgedOut) * $.rules.ownLtvBps / BPS);
@@ -108,7 +109,7 @@ library Queue {
         }
         ids.pop();
         // Action class, so settledEpoch + 1 is the clock epoch.
-        Backing.release($, loan, uint256($.settledEpoch) + 1, false);
+        Backing.release($, loan, uint256($.settledEpoch) + 1, false, true);
     }
 
     /// @notice Settlement step 3 for epoch `k`; `clock` is the current epoch. Never reverts because of a request.
@@ -161,7 +162,7 @@ library Queue {
             loan.status = LoanStatus.Expired;
             $.members[loan.borrower].pendingRequestId = 0;
             p.st[i] = DONE;
-            Backing.release($, loan, p.k, true);
+            Backing.release($, loan, p.k, true, false);
             emit IKuberCircleEvents.RequestExpired(p.ids[i]);
         }
     }
@@ -174,12 +175,15 @@ library Queue {
         (p.cap, maxLoan) = Invest.loanCapacity($, v);
     }
 
-    // D-06 (c): Active borrower, within the per-loan max and the locked LTV, and fully pledged.
+    // D-06 (c): Active borrower, within the per-loan max and the locked LTV, fully pledged, and no open debt in any
+    // circle (a default elsewhere after the request would make the proceeds lien-free; skipped, it keeps its place).
     function _eligible(CircleStorage.Layout storage $, Loan storage loan, uint256 maxLoan) private view returns (bool) {
         Member storage m = $.members[loan.borrower];
         if (m.status != MemberStatus.Active || loan.amount > maxLoan) return false;
         if (loan.ownPart > uint256(m.savings - m.pledgedOut) * loan.ownLtvBps / BPS) return false;
-        return _pledged(loan.vouchers) + _pledged(loan.agreers) == loan.backedNeed;
+        if (_pledged(loan.vouchers) + _pledged(loan.agreers) != loan.backedNeed) return false;
+        // Trusted registry fixed at init; a view call.
+        return !$.registry.hasOpenDebt(loan.borrower);
     }
 
     function _pledged(Pledge[] storage b) private view returns (uint256 sum) {

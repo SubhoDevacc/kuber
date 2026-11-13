@@ -13,8 +13,10 @@ import {
     Member,
     MemberStatus
 } from "./CircleTypes.sol";
+import {Governance} from "./Governance.sol";
 import {Invest} from "./Invest.sol";
 import {Loans} from "./Loans.sol";
+import {Membership} from "./Membership.sol";
 import {Queue} from "./Queue.sol";
 import {ShareOut} from "./ShareOut.sol";
 import {Weights} from "./Weights.sol";
@@ -44,12 +46,26 @@ library Settle {
             return;
         }
         $.cursor = 0;
-        _apply($);
+        // R-K: the period since the previous rebalance belongs to the manager in place before this apply step.
+        address mgr = $.manager;
+        // Step 2 (D-06): rules, allocation, and manager, then the leaves and the kick, before funding (T-INV-3).
+        Membership.applyStep($, k, Governance.tally($));
         Queue.fund($, k, clock);
-        // The final settlement skips this: finalize redeems everything. The returned values feed the M6 manager
-        // track record (R-K).
-        // slither-disable-next-line unused-return
-        if (k < $.fixedParams.totalEpochs) Invest.rebalance($);
+        // Read before rebalance overwrites it.
+        uint256 base = $.vaultValueAfterRebalance;
+        uint256 vaultNow;
+        uint256 pulled;
+        if (k < $.fixedParams.totalEpochs) {
+            (vaultNow, pulled) = Invest.rebalance($);
+        } else {
+            // The final settlement has no rebalance (finalize redeems everything), so the vaults are read before
+            // finalize. Only the two vault values are needed: R-K measures the vaults, not cash.
+            // slither-disable-next-line unused-return
+            (,, uint256 aaveVal, uint256 lpVal) = Invest.valuation($);
+            vaultNow = aaveVal + lpVal;
+            pulled = $.vaultPulledSinceRebalance;
+        }
+        if (mgr != address(0)) Governance.recordManager($, mgr, base, vaultNow + pulled);
         _reimburse($);
         $.settledEpoch = k.toUint8();
         emit IKuberCircleEvents.EpochSettled(k);
@@ -89,10 +105,6 @@ library Settle {
         // slither-disable-next-line arbitrary-send-erc20
         if (pull != 0) token.safeTransferFrom(member, address(this), pull);
     }
-
-    // M6 fills this: passed proposals, leaves, kicks, the admitted joiner.
-    // solhint-disable-next-line no-empty-blocks
-    function _apply(CircleStorage.Layout storage) private pure {}
 
     // M7 fills this: reimburse the caller's gas.
     // solhint-disable-next-line no-empty-blocks
