@@ -112,14 +112,14 @@ contract LoanFuzzTest is LoanTestBase {
 
     function _fundingSettle(S memory s, uint32[] memory before, Snap[] memory b, uint256 k) private {
         uint256 o0 = s.c.getPublicSummary().outstandingPrincipal;
-        uint256 pr0 = _principalRepaid(s.c);
+        uint256 pr0 = _principalOff(s.c);
         s.c.settle(MAX);
         _checkLogs(s.c, k - 1, k);
         _check(s, before, k);
         _ledger(s);
         _misses(s.c, k);
-        // The collect pass runs before funding, so the principal it repaid is off the capacity already.
-        _model(s.c, b, o0 - (_principalRepaid(s.c) - pr0), k);
+        // The collect pass runs before funding, so the principal it repaid or defaulted is off the capacity already.
+        _model(s.c, b, o0 - (_principalOff(s.c) - pr0), k);
     }
 
     /// @dev The planned checks after funding settlement k (D-19, A-5).
@@ -159,7 +159,12 @@ contract LoanFuzzTest is LoanTestBase {
             if (l.status == LoanStatus.Funded) unpaid += l.amount - l.principalRepaid;
             uint256 parts =
                 l.installmentsPaid == l.repayEpochs ? l.amount : uint256(l.amount) / l.repayEpochs * l.installmentsPaid;
-            assertEq(l.principalRepaid, parts, "principal parts");
+            // A default's step 0 cancels the unclaimed proceeds as repaid principal (M5 D-07).
+            if (l.status == LoanStatus.Defaulted) {
+                assertTrue(l.principalRepaid == parts || l.principalRepaid == l.amount, "defaulted principal");
+            } else {
+                assertEq(l.principalRepaid, parts, "principal parts");
+            }
             assertEq(l.installmentsPaid == l.repayEpochs, l.status == LoanStatus.Repaid, "repaid iff all paid");
             uint256 mb = missedBits[id];
             assertEq(l.missedCount, (mb & 1) + (mb >> 1 & 1) + (mb >> 2 & 1), "missedCount");
@@ -251,10 +256,12 @@ contract LoanFuzzTest is LoanTestBase {
         return false;
     }
 
-    function _principalRepaid(KuberCircle c) private view returns (uint256 sum) {
+    /// @dev Principal no longer outstanding: repaid, or all of it once the loan defaulted (M5 waterfall).
+    function _principalOff(KuberCircle c) private view returns (uint256 sum) {
         uint256 n = _h(c).loanCount();
         for (uint256 id = 1; id <= n; ++id) {
-            sum += c.getLoan(id).principalRepaid;
+            Loan memory l = c.getLoan(id);
+            sum += l.status == LoanStatus.Defaulted ? l.amount : l.principalRepaid;
         }
     }
 

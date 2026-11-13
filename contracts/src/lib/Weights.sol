@@ -21,9 +21,13 @@ library Weights {
     function changeSavings(CircleStorage.Layout storage $, address member, int256 delta, uint256 effectiveEpoch)
         internal
     {
+        Member storage m = $.members[member];
         // Savings added after the cycle count for no epoch; `last` never exceeds totalEpochs.
         uint256 x = Math.min(effectiveEpoch, uint256($.fixedParams.totalEpochs) + 1);
-        Member storage m = $.members[member];
+        // A reinstated member's weight before reinstatedEpoch was discarded (R-N2): a change dated earlier (by a
+        // settle(k) still running at the reinstatement) counts from reinstatedEpoch, not back-filled below weight 0.
+        // Only a back-fill can be dated that early, as lastAccrual >= reinstatedEpoch - 1 from the reinstatement on.
+        if (x <= m.lastAccrual) x = Math.max(x, m.reinstatedEpoch);
         (uint256 w, uint256 s, uint256 last) = _step(m.weight, m.savings, m.lastAccrual, delta, x);
         m.weight = w;
         m.savings = s.toUint128();
@@ -77,6 +81,19 @@ library Weights {
         m.status = newStatus;
     }
 
+    /// @notice Reinstates a Suspended member into W_active with weight 0 from epoch `e` (D-14; never W_saver).
+    function addToActive(CircleStorage.Layout storage $, address member, uint256 e) internal {
+        uint256 x = Math.min(e, uint256($.fixedParams.totalEpochs) + 1);
+        Member storage m = $.members[member];
+        m.status = MemberStatus.Active;
+        m.weight = 0;
+        m.lastAccrual = (x - 1).toUint8();
+        (uint256 w, uint256 s, uint256 last) = _step($.wActive, $.sActive, $.wActiveLast, int256(uint256(m.savings)), x);
+        $.wActive = w;
+        $.sActive = s;
+        $.wActiveLast = last.toUint8();
+    }
+
     /// @notice Marks the member borrowed and, if it was an Active saver, takes it out of W_saver.
     function removeFromSaver(CircleStorage.Layout storage $, address member, uint256 e) internal {
         Member storage m = $.members[member];
@@ -99,6 +116,18 @@ library Weights {
         amount = $.members[member].claimable;
         $.members[member].claimable = 0;
         $.reservedClaims -= amount;
+    }
+
+    /// @notice Cancels `amount` of the member's claimable (the waterfall's step 0).
+    function debitClaimable(CircleStorage.Layout storage $, address member, uint256 amount) internal {
+        $.members[member].claimable -= amount.toUint128();
+        $.reservedClaims -= amount;
+    }
+
+    /// @notice Lowers only savings and sTotal, for a member already out of both accumulators (R-N).
+    function debitSuspended(CircleStorage.Layout storage $, address member, uint256 amount) internal {
+        $.members[member].savings -= amount.toUint128();
+        $.sTotal -= amount;
     }
 
     // N-1 for one change (delta, x): accrue up to x - 1, or backfill delta over the epochs already accrued.

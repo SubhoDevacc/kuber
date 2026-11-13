@@ -42,9 +42,11 @@ library ShareOut {
         uint256 n = $.memberList.length;
         for (uint256 i; i < n; ++i) {
             address member = $.memberList[i];
-            // Suspended members at finalize are M5's (recordLeave there).
-            if ($.members[member].status != MemberStatus.Active) continue;
-            $.registry.recordComplete(member);
+            MemberStatus st = $.members[member].status;
+            if (st != MemberStatus.Active && st != MemberStatus.Suspended) continue;
+            // D-17: a member still paused at the end leaves; `!=` only (Slither's incorrect-equality on `==`).
+            if (st != MemberStatus.Active) $.registry.recordLeave(member);
+            else $.registry.recordComplete(member);
         }
     }
 
@@ -57,7 +59,8 @@ library ShareOut {
         int256 pot = $.finalYieldPot;
         if (pot > 0) {
             uint256 wActive = $.finalWActive;
-            amount = s + (wActive == 0 ? 0 : Math.mulDiv(uint256(pot), w, wActive));
+            // R-N: a Suspended member gets no positive yield.
+            amount = s + (wActive == 0 || m.status != MemberStatus.Active ? 0 : Math.mulDiv(uint256(pot), w, wActive));
         } else if (pot < 0) {
             // R-A: a loss is shared by savings, not weight.
             if (s > 0) {
@@ -77,11 +80,5 @@ library ShareOut {
         }
         amount += Weights.takeClaimable($, member);
         m.withdrawn = true;
-    }
-
-    /// @notice Cross-circle lien on a payout to a person (DECISIONS R-O); returns what goes to the person.
-    function lien(CircleStorage.Layout storage, address, uint256 amount) internal pure returns (uint256) {
-        // M5 fills this: repay the person's open debt in other circles first.
-        return amount;
     }
 }

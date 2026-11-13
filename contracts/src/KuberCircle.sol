@@ -8,6 +8,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import {
     BPS,
+    BackingTier,
     CircleStatus,
     CircleStorage,
     FixedParams,
@@ -19,12 +20,14 @@ import {
     RuleParams,
     Window
 } from "./lib/CircleTypes.sol";
+import {Backing} from "./lib/Backing.sol";
 import {Forming} from "./lib/Forming.sol";
 import {Invest} from "./lib/Invest.sol";
 import {Loans} from "./lib/Loans.sol";
 import {Queue} from "./lib/Queue.sol";
 import {Settle} from "./lib/Settle.sol";
 import {ShareOut} from "./lib/ShareOut.sol";
+import {Waterfall} from "./lib/Waterfall.sol";
 import {Weights} from "./lib/Weights.sol";
 
 /// @notice A savings circle. Entry points, guards, and views live here; logic lives in linked libraries
@@ -188,18 +191,34 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         Queue.cancel($, id);
     }
 
-    /// @notice Ended only, once per Active member: the final share-out from the frozen numbers (D-20, R-F).
+    /// @notice Action class (R-F): first-loss pledge of free savings to a pending request (05-CONTEXT D-02).
+    function vouch(uint256 id, uint256 amt) external {
+        _checkAction();
+        Backing.back($, id, amt, BackingTier.Vouch);
+    }
+
+    /// @notice Action class (R-F): second-loss pledge, at most one contribution per address per loan (D-02, R-D).
+    function agree(uint256 id, uint256 amt) external {
+        _checkAction();
+        Backing.back($, id, amt, BackingTier.Agree);
+    }
+
+    /// @notice Action class (R-F): withdraws the caller's whole pledge on a pending request (D-03).
+    function unback(uint256 id) external {
+        _checkAction();
+        Backing.unback($, id);
+    }
+
+    /// @notice Ended only, once per Active or Suspended member: the final share-out from the frozen numbers (D-20,
+    /// R-F, D-17), fully subject to the lien.
     function withdraw() external nonReentrant {
         if ($.status != CircleStatus.Ended) revert NotEnded();
         Member storage m = $.members[msg.sender];
-        if (m.status != MemberStatus.Active) revert NotMember();
+        if (m.status != MemberStatus.Active && m.status != MemberStatus.Suspended) revert NotMember();
         if (m.withdrawn) revert AlreadyWithdrawn();
         uint256 amount = ShareOut.payout($, msg.sender);
         emit Withdrawn(msg.sender, amount);
-        // Covers the whole payout, including what M5's lien sends elsewhere.
-        Invest.ensureCash($, amount);
-        uint256 toPerson = ShareOut.lien($, msg.sender, amount);
-        $.token.safeTransfer(msg.sender, toPerson);
+        Waterfall.payOut($, msg.sender, amount, 0, currentEpoch());
     }
 
     /// @notice Pays `claimable` in any window, while settlements are pending, and after Ended (R-F). No member
@@ -208,7 +227,7 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         if ($.status != CircleStatus.Active && $.status != CircleStatus.Ended) revert NotActive();
         uint256 id = $.members[msg.sender].activeLoanId;
         uint256 u = $.loans[id].unclaimed;
-        // M5's lien treats these proceeds as lien-free (R-O); M5's default step 0 cancels them if still unclaimed.
+        // Proceeds still marked unclaimed are lien-free (R-O); repaid-before-claim proceeds are ordinary claimable.
         if (u != 0) {
             $.loans[id].unclaimed = 0;
             emit LoanClaimed(id, msg.sender, u);
@@ -216,8 +235,8 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         uint256 amount = Weights.takeClaimable($, msg.sender);
         if (amount == 0) revert NothingToClaim();
         emit Claimed(msg.sender, amount);
-        Invest.ensureCash($, amount);
-        $.token.safeTransfer(msg.sender, amount);
+        // claimable >= u: the marker is cleared together with the proceeds.
+        Waterfall.payOut($, msg.sender, amount - u, u, currentEpoch());
     }
 
     /// @notice 0 before startTime, else (t - startTime) / epochDuration + 1 (D-15).
@@ -317,5 +336,27 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
     /// @notice Pending request ids, oldest first.
     function getQueue() external view returns (uint32[] memory) {
         return $.pendingIds;
+    }
+
+    /// @notice Pay class (R-F): repays up to `amt` of the caller's debt here in the D-13 order; at 0 the member is
+    /// reinstated while the circle is Active (D-14).
+    function repayDebt(uint256 amt) external nonReentrant {
+        if ($.status != CircleStatus.Active && $.status != CircleStatus.Ended) revert NotActive();
+        if (Waterfall.repay($, msg.sender, amt, currentEpoch()) != 0) return;
+        revert NoDebt();
+    }
+
+    /// @notice Pay class (R-F, D-16): a registry-listed circle pays `person`'s debt here out of a payout (the lien);
+    /// pulls at most min(amount, debt) from the caller.
+    function receiveLienPayment(address person, uint256 amount) external nonReentrant {
+        if (!$.registry.isCircle(msg.sender)) revert CallerNotCircle();
+        // pulls min(amount, debt); the paying circle reads what was pulled from its allowance
+        // slither-disable-next-line unused-return
+        Waterfall.repay($, person, amount, currentEpoch());
+    }
+
+    /// @notice What `person` still owes this circle: unrepaid backer losses, unpaid fines, unpaid penalty (R-O).
+    function debtOf(address person) external view returns (uint256) {
+        return Waterfall.debtOf($, person);
     }
 }

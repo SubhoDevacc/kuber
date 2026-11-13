@@ -5,15 +5,17 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {
     BPS,
-    Backing,
+    Backing as Pledge,
     CircleStorage,
     IKuberCircleErrors,
     IKuberCircleEvents,
     Loan,
     LoanStatus,
-    Member
+    Member,
+    SUSPEND_AT
 } from "./CircleTypes.sol";
-import {Queue} from "./Queue.sol";
+import {Backing} from "./Backing.sol";
+import {Waterfall} from "./Waterfall.sol";
 
 /// @notice Linked library (delegatecalled by KuberCircle and Settle): installments, fines, arrears, early payoff
 /// (SPEC §2.5 Repayment, Payments; DECISIONS R-C, R-H). Every function applies its effects and returns the amount;
@@ -33,7 +35,7 @@ library Loans {
         uint256 n = loan.repayEpochs;
         uint256 f = loan.fundedEpoch;
         for (uint256 i = loan.installmentsPaid; i < n && count < maxN && f + 2 + i <= clock; ++i) {
-            total += _pay($, id, i, clock);
+            total += _pay($, id, i, clock, false);
             ++count;
         }
     }
@@ -48,7 +50,7 @@ library Loans {
         if (id == 0) revert IKuberCircleErrors.NoActiveLoan();
         uint256 n = $.loans[id].repayEpochs;
         for (uint256 i = $.loans[id].installmentsPaid; i < n; ++i) {
-            total += _pay($, id, i, clock);
+            total += _pay($, id, i, clock, false);
         }
     }
 
@@ -68,7 +70,7 @@ library Loans {
         for (; i < n && f + 2 + i <= k; ++i) {
             uint256 a = installment(loan, i);
             if (pulled + a + _fineOf(loan, a, f + 2 + i) > avail) break;
-            pulled += _pay($, id, i, k);
+            pulled += _pay($, id, i, k, true);
         }
         uint256 bps = loan.installFineBps;
         for (uint256 j = i; j < n && f + 2 + j <= k; ++j) {
@@ -83,14 +85,14 @@ library Loans {
             emit IKuberCircleEvents.FineCharged(id, borrower, a * bps / BPS);
         }
         loan.lastCollectEpoch = k.toUint8();
-        _pauseCheck($, borrower, id, k);
+        _pauseCheck($, id, k);
     }
 
     /// @notice Installment i: the sum of each component's part (R-C), so the installments sum to amount + interest.
     function installment(Loan storage loan, uint256 i) internal view returns (uint256 a) {
         uint256 n = loan.repayEpochs;
         a = _part(loan.amount, n, i) + _part(loan.saverInterest, n, i);
-        Backing[] storage bs = loan.vouchers;
+        Pledge[] storage bs = loan.vouchers;
         for (uint256 j; j < bs.length; ++j) {
             a += _part(bs[j].interest, n, i);
         }
@@ -101,7 +103,7 @@ library Loans {
     }
 
     // One fine per settlement that found installment `a` (due in `due`) unpaid (R-H, 04-ADDENDUM A-1); one floor.
-    function _fineOf(Loan storage loan, uint256 a, uint256 due) private view returns (uint256) {
+    function _fineOf(Loan storage loan, uint256 a, uint256 due) internal view returns (uint256) {
         uint256 found = uint256(loan.lastCollectEpoch) + 1;
         return found > due ? a * loan.installFineBps * (found - due) / BPS : 0;
     }
@@ -112,7 +114,10 @@ library Loans {
     }
 
     // D-11: installment i paid in epoch `c`; closes the loan at the last one. Returns installment + fine.
-    function _pay(CircleStorage.Layout storage $, uint256 id, uint256 i, uint256 c) private returns (uint256) {
+    function _pay(CircleStorage.Layout storage $, uint256 id, uint256 i, uint256 c, bool inSettlement)
+        private
+        returns (uint256)
+    {
         Loan storage loan = $.loans[id];
         uint256 n = loan.repayEpochs;
         uint256 p = _part(loan.amount, n, i);
@@ -125,16 +130,16 @@ library Loans {
         if (fine != 0) _fine($, loan, fine);
         loan.installmentsPaid = (i + 1).toUint8();
         emit IKuberCircleEvents.InstallmentPaid(id, i, a + fine);
-        if (i + 1 == n) _close($, id, c);
+        if (i + 1 == n) _close($, id, c, inSettlement);
         return a + fine;
     }
 
-    function _payBackers(CircleStorage.Layout storage $, Backing[] storage bs, uint256 n, uint256 i)
+    function _payBackers(CircleStorage.Layout storage $, Pledge[] storage bs, uint256 n, uint256 i)
         private
         returns (uint256 sum)
     {
         for (uint256 j; j < bs.length; ++j) {
-            Backing storage b = bs[j];
+            Pledge storage b = bs[j];
             uint256 x = _part(b.interest, n, i);
             b.interestPaid += x.toUint128();
             $.members[b.backer].rewards += x.toUint128();
@@ -155,7 +160,7 @@ library Loans {
         uint256 need = loan.backedNeed;
         uint256 left = fine;
         for (uint256 j; j < nb; ++j) {
-            Backing storage b = j < nv ? loan.vouchers[j] : loan.agreers[j - nv];
+            Pledge storage b = j < nv ? loan.vouchers[j] : loan.agreers[j - nv];
             uint256 x = j + 1 == nb ? left : fine * b.amount / need;
             left -= x;
             $.members[b.backer].rewards += x.toUint128();
@@ -164,7 +169,7 @@ library Loans {
     }
 
     // D-14: `c` is the payment's clock epoch, or k in the collect pass.
-    function _close(CircleStorage.Layout storage $, uint256 id, uint256 c) private {
+    function _close(CircleStorage.Layout storage $, uint256 id, uint256 c, bool inSettlement) private {
         Loan storage loan = $.loans[id];
         address borrower = loan.borrower;
         Member storage m = $.members[borrower];
@@ -175,13 +180,22 @@ library Loans {
         m.activeLoanId = 0;
         // Past the cycle no request is possible, so the cap only keeps it in uint8.
         m.cooldownUntil = (Math.min(c, $.fixedParams.totalEpochs) + $.fixedParams.cooldownEpochs).toUint8();
-        Queue.releasePledges($, id);
+        Backing.release($, loan, c, inSettlement);
         emit IKuberCircleEvents.LoanRepaid(id, onTime);
         // Trusted registry fixed at init.
         $.registry.recordRepaid(borrower, onTime);
     }
 
-    /// @notice M5 fills this (05-CONTEXT D-06): pause trigger and waterfall. M4 only fines and records misses.
-    // solhint-disable-next-line no-empty-blocks
-    function _pauseCheck(CircleStorage.Layout storage, address, uint256, uint256) private pure {}
+    // D-06, R-H: after this pass's misses and fines. Pause at SUSPEND_AT unpaid installments, an installment found
+    // unpaid at 3 settlements, or anything unpaid at the last settlement. A loan this pass closed returns early.
+    function _pauseCheck(CircleStorage.Layout storage $, uint256 id, uint256 k) private {
+        Loan storage loan = $.loans[id];
+        uint256 paid = loan.installmentsPaid;
+        uint256 n = loan.repayEpochs;
+        uint256 f = loan.fundedEpoch;
+        uint256 oldest = f + 2 + paid;
+        if (paid == n || oldest > k) return;
+        uint256 unpaid = Math.min(n, k - f - 1) - paid;
+        if (unpaid >= SUSPEND_AT || oldest + 2 <= k || k == $.fixedParams.totalEpochs) Waterfall.suspend($, id, k);
+    }
 }

@@ -61,7 +61,8 @@ library Settle {
     // min(balance, allowance) budget and one transfer; a short budget records misses, never a revert.
     function _collect(CircleStorage.Layout storage $, address member, uint256 k) private {
         Member storage m = $.members[member];
-        if (m.status != MemberStatus.Active) return;
+        // R-N2: rounds missed while paused are not owed, so a reinstated member is collected from reinstatedEpoch.
+        if (m.status != MemberStatus.Active || k < m.reinstatedEpoch) return;
         uint64 bit = uint64(1 << k);
         bool owes = m.paidBitmap & bit == 0;
         if (!owes && m.activeLoanId == 0) return;

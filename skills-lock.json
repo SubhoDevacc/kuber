@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "skills": {
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "83485963700bcf11d5bf78118facb301676b69d918fee2e45a95e7f1a2840f6c"
+    },
+    "privy": {
+      "source": "docs.privy.io",
+      "sourceUrl": "https://docs.privy.io",
+      "sourceType": "well-known",
+      "computedHash": "bdaed17a443557931b9a339e5131d0c441af433a6c934b719c6b0b708640d097",
+      "wellKnownDigest": "sha256:31c1e4cb986a584df9a5a3eff318835d0fb621db05a003c8049919082df40cdd"
+    }
+  }
+}

@@ -5,7 +5,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {
     BPS,
-    Backing,
+    Backing as Pledge,
     CircleStorage,
     IKuberCircleErrors,
     IKuberCircleEvents,
@@ -17,6 +17,7 @@ import {
     Member,
     MemberStatus
 } from "./CircleTypes.sol";
+import {Backing} from "./Backing.sol";
 import {Invest} from "./Invest.sol";
 import {Weights} from "./Weights.sol";
 
@@ -106,13 +107,15 @@ library Queue {
             ids[i] = ids[i + 1];
         }
         ids.pop();
-        releasePledges($, id);
+        // Action class, so settledEpoch + 1 is the clock epoch.
+        Backing.release($, loan, uint256($.settledEpoch) + 1, false);
     }
 
     /// @notice Settlement step 3 for epoch `k`; `clock` is the current epoch. Never reverts because of a request.
     function fund(CircleStorage.Layout storage $, uint256 k, uint256 clock) external {
-        // D-05: catching up, so no loan starts with installments already overdue; skipped passes add no age.
-        if (clock > k + 1) return;
+        // D-05: catching up, so no loan starts with installments already overdue; the last settlement still expires
+        // every request. Skipped passes add no age.
+        if (clock > k + 1 && k < $.fixedParams.totalEpochs) return;
         uint32[] memory ids = $.pendingIds;
         uint256 n = ids.length;
         if (n == 0) return;
@@ -143,10 +146,6 @@ library Queue {
         _ageAndCompact($, p);
     }
 
-    /// @notice M5 fills this (05-CONTEXT D-04): release every backer's pledge. M4 loans have no backers.
-    // solhint-disable-next-line no-empty-blocks
-    function releasePledges(CircleStorage.Layout storage, uint256) internal pure {}
-
     function _own(CircleStorage.Layout storage $, uint256 id) private view returns (Loan storage loan) {
         loan = $.loans[id];
         if (loan.borrower != msg.sender) revert IKuberCircleErrors.NotBorrower();
@@ -162,7 +161,7 @@ library Queue {
             loan.status = LoanStatus.Expired;
             $.members[loan.borrower].pendingRequestId = 0;
             p.st[i] = DONE;
-            releasePledges($, p.ids[i]);
+            Backing.release($, loan, p.k, true);
             emit IKuberCircleEvents.RequestExpired(p.ids[i]);
         }
     }
@@ -183,7 +182,7 @@ library Queue {
         return _pledged(loan.vouchers) + _pledged(loan.agreers) == loan.backedNeed;
     }
 
-    function _pledged(Backing[] storage b) private view returns (uint256 sum) {
+    function _pledged(Pledge[] storage b) private view returns (uint256 sum) {
         for (uint256 i; i < b.length; ++i) {
             sum += b[i].amount;
         }
@@ -233,13 +232,13 @@ library Queue {
         if (lane == Lane.Fast) interest += amount * loan.extraBps / BPS;
         loan.saverInterest = interest.toUint128();
         uint256 rate = loan.offeredRateBps;
-        Backing[] storage b = loan.vouchers;
+        Pledge[] storage b = loan.vouchers;
         for (uint256 i; i < b.length; ++i) {
-            b[i].interest = (b[i].amount * rate / BPS).toUint128();
+            b[i].interest = SafeCast.toUint128(b[i].amount * rate / BPS);
         }
         b = loan.agreers;
         for (uint256 i; i < b.length; ++i) {
-            b[i].interest = (b[i].amount * rate / (2 * BPS)).toUint128();
+            b[i].interest = SafeCast.toUint128(b[i].amount * rate / (2 * BPS));
         }
         loan.lane = lane;
         loan.status = LoanStatus.Funded;

@@ -4,7 +4,8 @@ pragma solidity 0.8.38;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {KuberRegistry} from "../KuberRegistry.sol";
 
-// AGREE_CAP = contribution and AGREE_RATE = offered / 2 are formulas applied in M5; MAX_ACTIVE_CIRCLES lives in KuberRegistry.
+// AGREE_CAP = contribution and AGREE_RATE = offered / 2 are formulas (Backing.back, Queue._fundOne); MAX_ACTIVE_CIRCLES
+// lives in KuberRegistry.
 uint256 constant BPS = 10_000;
 uint256 constant MAX_MEMBERS = 50;
 uint256 constant MIN_MEMBERS_FLOOR = 5;
@@ -122,6 +123,10 @@ struct Member {
     bool leavePending;
     uint16 leaveExitFeeBps;
     address sponsor;
+    // The member's latest defaulted loan; debtOf reads its unpaid losses, fines, and penalty.
+    uint32 debtLoanId;
+    // A reinstated member is collected again from this epoch on (R-N2: rounds missed while paused are not owed).
+    uint8 reinstatedEpoch;
 }
 
 struct Backing {
@@ -272,6 +277,15 @@ interface IKuberCircleErrors {
     error NotPending();
     error NothingDue();
     error NoActiveLoan();
+    error ExceedsFreeSavings();
+    error OverPledged();
+    error OtherTier();
+    error AgreeCapExceeded();
+    error TooManyBackers();
+    error NotBacker();
+    error GroupLoss();
+    error NoDebt();
+    error CallerNotCircle();
 }
 
 interface IKuberCircleEvents {
