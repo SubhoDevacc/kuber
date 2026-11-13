@@ -3,7 +3,9 @@ pragma solidity 0.8.38;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {KuberCircle} from "../../src/KuberCircle.sol";
+import {Backing} from "../../src/lib/CircleTypes.sol";
 import {Invest} from "../../src/lib/Invest.sol";
 import {Weights} from "../../src/lib/Weights.sol";
 
@@ -51,5 +53,22 @@ contract KuberCircleHarness is KuberCircle {
 
     function vaultPulledSinceRebalance() external view returns (uint256) {
         return $.vaultPulledSinceRebalance;
+    }
+
+    function loanCount() external view returns (uint256) {
+        return $.loanCount;
+    }
+
+    /// @dev Stands in for M6's requestLeave so T-LN-1 can cover R-M now.
+    function setLeavePending(address member, bool pending) external {
+        $.members[member].leavePending = pending;
+    }
+
+    /// @dev Stands in for M5's vouch/agree (M5's tests replace it) so the D-11 backer code runs now; no pledgedOut.
+    function pushBacking(uint256 id, bool agree, address backer, uint256 amount) external {
+        Backing memory b =
+            Backing({backer: backer, amount: SafeCast.toUint128(amount), interest: 0, interestPaid: 0, loss: 0});
+        if (agree) $.loans[id].agreers.push(b);
+        else $.loans[id].vouchers.push(b);
     }
 }

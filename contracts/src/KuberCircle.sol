@@ -13,6 +13,7 @@ import {
     FixedParams,
     IKuberCircleErrors,
     IKuberCircleEvents,
+    Loan,
     Member,
     MemberStatus,
     RuleParams,
@@ -20,6 +21,8 @@ import {
 } from "./lib/CircleTypes.sol";
 import {Forming} from "./lib/Forming.sol";
 import {Invest} from "./lib/Invest.sol";
+import {Loans} from "./lib/Loans.sol";
+import {Queue} from "./lib/Queue.sol";
 import {Settle} from "./lib/Settle.sol";
 import {ShareOut} from "./lib/ShareOut.sol";
 import {Weights} from "./lib/Weights.sol";
@@ -103,21 +106,44 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         Settle.run($, maxMembers, currentEpoch());
     }
 
-    /// @notice Pays the clock epoch's contribution; any window, also while settlements are pending (R-F, D-18).
+    /// @notice Pays the clock epoch's contribution if unpaid and the oldest unpaid installment due by now, all or
+    /// nothing; any window, also while settlements are pending (R-F, D-12, D-18).
     function payNow() external nonReentrant {
-        if ($.status != CircleStatus.Active) revert NotActive();
-        Member storage m = $.members[msg.sender];
-        if (m.status != MemberStatus.Active) revert NotMember();
+        Member storage m = _payer();
         uint256 e = currentEpoch();
         if (e > $.fixedParams.totalEpochs) revert CycleOver();
+        (uint256 amount, uint256 count) = Loans.payDue($, msg.sender, 1, e);
         uint64 bit = uint64(1 << e);
-        if (m.paidBitmap & bit != 0) revert AlreadyPaid();
+        if (m.paidBitmap & bit != 0) {
+            if (count != 0) {
+                _pull(amount);
+                return;
+            }
+            revert AlreadyPaid();
+        }
         uint256 c = $.fixedParams.contribution;
         m.paidBitmap |= bit;
         m.paidCount += 1;
         Weights.changeSavings($, msg.sender, int256(c), e);
         emit ContributionPaid(msg.sender, e, c);
-        $.token.safeTransferFrom(msg.sender, address(this), c);
+        _pull(amount + c);
+    }
+
+    /// @notice Pay class (R-F): the `n` oldest unpaid installments due by now, each with its fines (D-12).
+    function payArrears(uint256 n) external nonReentrant {
+        _payer();
+        (uint256 total, uint256 count) = Loans.payDue($, msg.sender, n, currentEpoch());
+        if (count != 0) {
+            _pull(total);
+            return;
+        }
+        revert NothingDue();
+    }
+
+    /// @notice Pay class (R-F): every remaining installment; interest unchanged, fines only on late ones (D-12).
+    function repayAll() external nonReentrant {
+        _payer();
+        _pull(Loans.repayAll($, msg.sender, currentEpoch()));
     }
 
     /// @notice Pays a missed epoch plus a fine per epoch late to the savers' pot; savings count from the clock
@@ -141,6 +167,27 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         $.token.safeTransferFrom(msg.sender, address(this), c + fine);
     }
 
+    /// @notice Action class (R-F). Locks the request's terms and queues it oldest first (D-03).
+    function requestLoan(uint256 amount, uint256 repayEpochs, uint256 offeredRateBps, uint256 extraBps)
+        external
+        returns (uint256)
+    {
+        _checkAction();
+        return Queue.request($, amount, repayEpochs, offeredRateBps, extraBps, currentEpoch());
+    }
+
+    /// @notice Action class (R-F), borrower only: raises the extra on a pending request (D-04).
+    function raiseExtra(uint256 id, uint256 newExtraBps) external {
+        _checkAction();
+        Queue.raiseExtra($, id, newExtraBps);
+    }
+
+    /// @notice Action class (R-F), borrower only: cancels a pending request (D-04).
+    function cancelRequest(uint256 id) external {
+        _checkAction();
+        Queue.cancel($, id);
+    }
+
     /// @notice Ended only, once per Active member: the final share-out from the frozen numbers (D-20, R-F).
     function withdraw() external nonReentrant {
         if ($.status != CircleStatus.Ended) revert NotEnded();
@@ -159,6 +206,13 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
     /// status check: Left and Kicked members claim exit payouts from M6.
     function claim() external nonReentrant {
         if ($.status != CircleStatus.Active && $.status != CircleStatus.Ended) revert NotActive();
+        uint256 id = $.members[msg.sender].activeLoanId;
+        uint256 u = $.loans[id].unclaimed;
+        // M5's lien treats these proceeds as lien-free (R-O); M5's default step 0 cancels them if still unclaimed.
+        if (u != 0) {
+            $.loans[id].unclaimed = 0;
+            emit LoanClaimed(id, msg.sender, u);
+        }
         uint256 amount = Weights.takeClaimable($, msg.sender);
         if (amount == 0) revert NothingToClaim();
         emit Claimed(msg.sender, amount);
@@ -194,6 +248,17 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
     function _checkVote() internal view {
         if ($.status != CircleStatus.Active) revert NotActive();
         if ($.settledEpoch != currentEpoch() - 1) revert SettlementPending();
+    }
+
+    /// @notice Pay class caller: an Active member of an Active circle.
+    function _payer() internal view returns (Member storage m) {
+        if ($.status != CircleStatus.Active) revert NotActive();
+        m = $.members[msg.sender];
+        if (m.status != MemberStatus.Active) revert NotMember();
+    }
+
+    function _pull(uint256 amount) internal {
+        if (amount != 0) $.token.safeTransferFrom(msg.sender, address(this), amount);
     }
 
     function getCircleState() external view returns (CircleState memory s) {
@@ -243,5 +308,14 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
 
     function members() external view returns (address[] memory) {
         return $.memberList;
+    }
+
+    function getLoan(uint256 id) external view returns (Loan memory) {
+        return $.loans[id];
+    }
+
+    /// @notice Pending request ids, oldest first.
+    function getQueue() external view returns (uint32[] memory) {
+        return $.pendingIds;
     }
 }

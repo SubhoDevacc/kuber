@@ -159,6 +159,9 @@ struct Loan {
     uint128 unclaimed;
     uint128 finesOwed;
     uint128 penaltyOwed;
+    // The last epoch whose collect pass checked this loan; fines count the settlements that found an installment
+    // unpaid (04-ADDENDUM A-1).
+    uint8 lastCollectEpoch;
 }
 
 library CircleStorage {
@@ -202,6 +205,9 @@ library CircleStorage {
         uint256 vaultValueAfterRebalance;
         // Tokens ensureCash pulled from the vaults since that rebalance, so a payout does not read as a loss.
         uint256 vaultPulledSinceRebalance;
+        // Pending request ids in ascending id order, which is D-07's oldest-first order (ids and request epochs
+        // only grow); at most one per member.
+        uint32[] pendingIds;
     }
 }
 
@@ -252,6 +258,20 @@ interface IKuberCircleErrors {
     error InvalidManagerFee();
     error InsufficientLiquidity();
     error InvalidVault();
+    error NotEnoughSaved();
+    error HasActiveLoan();
+    error HasPendingRequest();
+    error InCooldown();
+    error InvalidRepayEpochs();
+    error RepayPastEnd();
+    error InvalidOfferedRate();
+    error InvalidExtra();
+    error ZeroAmount();
+    error LeavePending();
+    error NotBorrower();
+    error NotPending();
+    error NothingDue();
+    error NoActiveLoan();
 }
 
 interface IKuberCircleEvents {

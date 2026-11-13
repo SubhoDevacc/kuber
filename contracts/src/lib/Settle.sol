@@ -3,6 +3,7 @@ pragma solidity 0.8.38;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {
     CircleStatus,
@@ -13,6 +14,8 @@ import {
     MemberStatus
 } from "./CircleTypes.sol";
 import {Invest} from "./Invest.sol";
+import {Loans} from "./Loans.sol";
+import {Queue} from "./Queue.sol";
 import {ShareOut} from "./ShareOut.sol";
 import {Weights} from "./Weights.sol";
 
@@ -42,7 +45,7 @@ library Settle {
         }
         $.cursor = 0;
         _apply($);
-        _fund($);
+        Queue.fund($, k, clock);
         // The final settlement skips this: finalize redeems everything. The returned values feed the M6 manager
         // track record (R-K).
         // slither-disable-next-line unused-return
@@ -54,35 +57,41 @@ library Settle {
         if (k == $.fixedParams.totalEpochs) ShareOut.finalize($);
     }
 
-    // D-17: pull the contribution for k unless pre-paid; a short balance or allowance records a miss, never a revert.
+    // D-17, D-13: pull the contribution for k unless pre-paid, then the installments due by k, from one
+    // min(balance, allowance) budget and one transfer; a short budget records misses, never a revert.
     function _collect(CircleStorage.Layout storage $, address member, uint256 k) private {
         Member storage m = $.members[member];
         if (m.status != MemberStatus.Active) return;
         uint64 bit = uint64(1 << k);
-        if (m.paidBitmap & bit != 0) return;
-        uint256 c = $.fixedParams.contribution;
+        bool owes = m.paidBitmap & bit == 0;
+        if (!owes && m.activeLoanId == 0) return;
         IERC20 token = $.token;
-        if (token.balanceOf(member) >= c && token.allowance(member, address(this)) >= c) {
-            m.paidBitmap |= bit;
-            m.paidCount += 1;
-            Weights.changeSavings($, member, int256(c), k);
-            emit IKuberCircleEvents.ContributionPaid(member, k, c);
-            // Auto-debit the member authorised with the advance allowance (R-G): an Active listed member, exactly c, unpaid k.
-            // slither-disable-next-line arbitrary-send-erc20
-            token.safeTransferFrom(member, address(this), c);
-        } else {
-            m.missedBitmap |= bit;
-            emit IKuberCircleEvents.ContributionMissed(member, k);
+        uint256 avail = Math.min(token.balanceOf(member), token.allowance(member, address(this)));
+        uint256 pull = 0;
+        if (owes) {
+            uint256 c = $.fixedParams.contribution;
+            if (avail >= c) {
+                m.paidBitmap |= bit;
+                m.paidCount += 1;
+                Weights.changeSavings($, member, int256(c), k);
+                emit IKuberCircleEvents.ContributionPaid(member, k, c);
+                pull = c;
+                avail -= c;
+            } else {
+                m.missedBitmap |= bit;
+                emit IKuberCircleEvents.ContributionMissed(member, k);
+            }
         }
+        if (m.activeLoanId != 0) pull += Loans.collect($, member, k, avail);
+        // Auto-debit the member authorised with the advance allowance (R-G): an Active listed member, the unpaid
+        // contribution for k and installments due by k, never more than min(balance, allowance).
+        // slither-disable-next-line arbitrary-send-erc20
+        if (pull != 0) token.safeTransferFrom(member, address(this), pull);
     }
 
     // M6 fills this: passed proposals, leaves, kicks, the admitted joiner.
     // solhint-disable-next-line no-empty-blocks
     function _apply(CircleStorage.Layout storage) private pure {}
-
-    // M4 fills this: fund the loan queue (skipped while settlement is behind), expire stale requests.
-    // solhint-disable-next-line no-empty-blocks
-    function _fund(CircleStorage.Layout storage) private pure {}
 
     // M7 fills this: reimburse the caller's gas.
     // solhint-disable-next-line no-empty-blocks
