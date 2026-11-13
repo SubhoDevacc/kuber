@@ -238,6 +238,47 @@ contract ShareOutTest is CircleTestBase {
         assertEq(usdc.balanceOf(address(c)), 4);
     }
 
+    /// @dev DECISIONS R-U: an LP crash plus a drain leaves 1e5 against sTotal 4_200e6 and a 1e6 savers' pot. Finalize
+    /// cuts the savers' pot to the 1e5 left, so every member can withdraw.
+    function test_RU_lossAboveSavingsCutsSaverPot() public {
+        (KuberCircle c, address[] memory ms) = _start(6);
+        vm.prank(ms[5]);
+        usdc.approve(address(c), 0);
+        _warpSettle(c, 2);
+        vm.startPrank(ms[5]);
+        usdc.approve(address(c), 1_000e6);
+        c.catchUp(1);
+        vm.stopPrank();
+        for (uint256 e = 3; e <= 7; ++e) {
+            _warpSettle(c, e);
+        }
+        for (uint256 i; i < 6; ++i) {
+            vm.prank(ms[i]);
+            c.payNow();
+        }
+        _warpTo(c, 8, false);
+        lp.shock(-9998);
+        KuberCircle.PublicSummary memory p = c.getPublicSummary();
+        _h(c).drain(makeAddr("sink"), p.cash + p.aaveValue + p.lpValue - 1e5);
+        c.settle(MAX);
+
+        p = c.getPublicSummary();
+        assertEq(p.cash, 1e5);
+        assertEq(p.saverPot, 1e5);
+        assertEq(p.yieldPot, -4_200e6);
+        assertEq(p.wSaver, 16_700e6);
+        // Without R-U the saver shares add up to more than the cash and the first withdraw reverts InsufficientLiquidity.
+        // Saver share only: floor(1e5 × 2_800 / 16_700) = 16_766; ms[5]: floor(1e5 × 2_700 / 16_700) = 16_167.
+        uint256 sum;
+        for (uint256 i; i < 6; ++i) {
+            uint256 got = _withdraw(c, ms[i]);
+            assertEq(got, i == 5 ? 16_167 : 16_766);
+            sum += got;
+        }
+        assertEq(sum, 99_997);
+        assertEq(usdc.balanceOf(address(c)), 3);
+    }
+
     /// @dev T-02-21: nobody saves inside the cycle (ms[1] catches up epoch 1 at clock 9, which counts for no epoch),
     /// so W_active = W_saver = 0. The saver pot (fine 8e6) joins the yield pot, no division by zero happens, and
     /// with no weight to share by, the pot stays in the circle.

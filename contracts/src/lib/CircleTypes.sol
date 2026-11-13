@@ -198,6 +198,10 @@ library CircleStorage {
         uint256 finalWSaver;
         uint256 finalSaverPot;
         uint256 finalSTotal;
+        // Combined Aave and LP value after the latest rebalance, for the M6 manager track record (R-K).
+        uint256 vaultValueAfterRebalance;
+        // Tokens ensureCash pulled from the vaults since that rebalance, so a payout does not read as a loss.
+        uint256 vaultPulledSinceRebalance;
     }
 }
 
@@ -246,6 +250,8 @@ interface IKuberCircleErrors {
     error InvalidInstallFine();
     error InvalidExitFee();
     error InvalidManagerFee();
+    error InsufficientLiquidity();
+    error InvalidVault();
 }
 
 interface IKuberCircleEvents {

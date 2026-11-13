@@ -3,6 +3,7 @@ pragma solidity 0.8.38;
 
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {KuberRegistry} from "./KuberRegistry.sol";
 import {KuberCircle} from "./KuberCircle.sol";
 import {FixedParams, IKuberCircleErrors, RuleParams} from "./lib/CircleTypes.sol";
@@ -22,6 +23,10 @@ contract KuberFactory is IKuberCircleErrors {
             address(registry_) == address(0) || address(token_) == address(0) || aaveVault_ == address(0)
                 || lpVault_ == address(0) || implementation_ == address(0)
         ) revert ZeroAddress();
+        if (
+            aaveVault_ == lpVault_ || IERC4626(aaveVault_).asset() != address(token_)
+                || IERC4626(lpVault_).asset() != address(token_)
+        ) revert InvalidVault();
         REGISTRY = registry_;
         TOKEN = token_;
         AAVE_VAULT = aaveVault_;

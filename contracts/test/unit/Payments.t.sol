@@ -110,8 +110,10 @@ contract PaymentsTest is CircleTestBase {
         }
         assertEq(usdc.balanceOf(m1), 50e6);
         assertEq(usdc.balanceOf(m2), bal2);
-        assertEq(usdc.balanceOf(address(c)), 400e6);
-        assertEq(c.getPublicSummary().sTotal, 400e6);
+        KuberCircle.PublicSummary memory p = c.getPublicSummary();
+        // settle(1) moved 85% into the vaults: cash 60e6, Aave 200e6, LP 140e6.
+        assertEq(p.cash + p.aaveValue + p.lpValue, 400e6);
+        assertEq(p.sTotal, 400e6);
     }
 
     function test_T_PAY_3_catchUpFineToSaversPot() public {

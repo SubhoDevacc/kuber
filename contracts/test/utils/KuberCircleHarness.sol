@@ -4,6 +4,7 @@ pragma solidity 0.8.38;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {KuberCircle} from "../../src/KuberCircle.sol";
+import {Invest} from "../../src/lib/Invest.sol";
 import {Weights} from "../../src/lib/Weights.sol";
 
 /// @dev Test-only: probes for the action/vote guards and exact weight reads at any epoch (D-15).
@@ -34,8 +35,21 @@ contract KuberCircleHarness is KuberCircle {
         Weights.creditClaimable($, member, amount);
     }
 
-    /// @dev Stands in for an investment loss until M3's vaults exist.
+    /// @dev Stands in for a loss anywhere in the pot; pulls from the vaults first like a payout.
     function drain(address to, uint256 amount) external {
+        Invest.ensureCash($, amount);
         $.token.safeTransfer(to, amount);
+    }
+
+    function rebalanceNow() external returns (uint256 vaultValueBefore, uint256 pulledSinceRebalance) {
+        return Invest.rebalance($);
+    }
+
+    function vaultValueAfterRebalance() external view returns (uint256) {
+        return $.vaultValueAfterRebalance;
+    }
+
+    function vaultPulledSinceRebalance() external view returns (uint256) {
+        return $.vaultPulledSinceRebalance;
     }
 }

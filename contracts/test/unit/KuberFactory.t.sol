@@ -7,6 +7,8 @@ import {CircleTestBase} from "../utils/CircleTestBase.sol";
 import {KuberCircle} from "../../src/KuberCircle.sol";
 import {KuberFactory} from "../../src/KuberFactory.sol";
 import {KuberRegistry} from "../../src/KuberRegistry.sol";
+import {MockLPVault} from "../../src/MockLPVault.sol";
+import {MockUSDC} from "../../src/MockUSDC.sol";
 import {
     Alloc,
     CircleStatus,
@@ -353,5 +355,21 @@ contract KuberFactoryTest is CircleTestBase {
         new KuberFactory(registry, token, address(aave), address(0), impl);
         vm.expectRevert(err);
         new KuberFactory(registry, token, address(aave), address(lp), address(0));
+    }
+
+    function test_factory_sameVaultReverts() public {
+        address impl = factory.IMPLEMENTATION();
+        vm.expectRevert(IKuberCircleErrors.InvalidVault.selector);
+        new KuberFactory(registry, IERC20(address(usdc)), address(aave), address(aave), impl);
+    }
+
+    function test_factory_vaultAssetMismatchReverts() public {
+        MockLPVault other = new MockLPVault(new MockUSDC(address(this)), "Other LP", "oLP", address(this));
+        IERC20 token = IERC20(address(usdc));
+        address impl = factory.IMPLEMENTATION();
+        vm.expectRevert(IKuberCircleErrors.InvalidVault.selector);
+        new KuberFactory(registry, token, address(aave), address(other), impl);
+        vm.expectRevert(IKuberCircleErrors.InvalidVault.selector);
+        new KuberFactory(registry, token, address(other), address(lp), impl);
     }
 }

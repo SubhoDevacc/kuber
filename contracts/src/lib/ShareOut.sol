@@ -4,6 +4,7 @@ pragma solidity 0.8.38;
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {CircleStatus, CircleStorage, IKuberCircleEvents, Member, MemberStatus} from "./CircleTypes.sol";
+import {Invest} from "./Invest.sol";
 import {Weights} from "./Weights.sol";
 
 /// @notice Linked library (delegatecalled by KuberCircle and Settle): freezes the share-out numbers at the last
@@ -13,12 +14,17 @@ library ShareOut {
 
     /// @notice Runs once, inside the settlement of epoch totalEpochs (D-19).
     function finalize(CircleStorage.Layout storage $) external {
-        // M3 redeems the vaults and M7 takes fees here, before the freeze.
+        Invest.redeemAll($);
+        // M7 takes fees here, before the freeze.
         Weights.accrueGlobal($, $.fixedParams.totalEpochs);
         uint256 sTotal = $.sTotal;
-        int256 pot = $.token.balanceOf(address(this)).toInt256()
-            - ($.reservedClaims + $.totalRewardsOwed + $.saverPot).toInt256() - sTotal.toInt256();
+        uint256 bal = $.token.balanceOf(address(this));
+        uint256 owed = $.reservedClaims + $.totalRewardsOwed;
+        // R-U: a loss beyond all savings comes out of the savers' bonus first; a balance below `owed` is outside
+        // the model (invariant I5).
+        if (bal < owed + $.saverPot) $.saverPot = bal > owed ? bal - owed : 0;
         uint256 saverPot = $.saverPot;
+        int256 pot = bal.toInt256() - (owed + saverPot).toInt256() - sTotal.toInt256();
         uint256 wSaver = $.wSaver;
         // SPEC share-out step 5: with no savers left, their pot joins the yield pot.
         if (wSaver == 0) {

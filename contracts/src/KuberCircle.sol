@@ -19,6 +19,7 @@ import {
     Window
 } from "./lib/CircleTypes.sol";
 import {Forming} from "./lib/Forming.sol";
+import {Invest} from "./lib/Invest.sol";
 import {Settle} from "./lib/Settle.sol";
 import {ShareOut} from "./lib/ShareOut.sol";
 import {Weights} from "./lib/Weights.sol";
@@ -53,6 +54,8 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         uint256 wActive;
         uint256 wSaver;
         int256 yieldPot;
+        uint256 aaveValue;
+        uint256 lpValue;
     }
 
     CircleStorage.Layout internal $;
@@ -145,8 +148,10 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         if (m.status != MemberStatus.Active) revert NotMember();
         if (m.withdrawn) revert AlreadyWithdrawn();
         uint256 amount = ShareOut.payout($, msg.sender);
-        uint256 toPerson = ShareOut.lien($, msg.sender, amount);
         emit Withdrawn(msg.sender, amount);
+        // Covers the whole payout, including what M5's lien sends elsewhere.
+        Invest.ensureCash($, amount);
+        uint256 toPerson = ShareOut.lien($, msg.sender, amount);
         $.token.safeTransfer(msg.sender, toPerson);
     }
 
@@ -157,6 +162,7 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         uint256 amount = Weights.takeClaimable($, msg.sender);
         if (amount == 0) revert NothingToClaim();
         emit Claimed(msg.sender, amount);
+        Invest.ensureCash($, amount);
         $.token.safeTransfer(msg.sender, amount);
     }
 
@@ -203,10 +209,11 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         s.rules = $.rules;
     }
 
-    /// @notice Live totals while running (weights through `settledEpoch`, yieldPot = V - S_total without vault
-    /// values until M3); the frozen share-out numbers once Ended (D-21).
+    /// @notice Live totals while running (weights through `settledEpoch`, yieldPot = V - S_total, R-R); the frozen
+    /// share-out numbers once Ended (D-21). Cash and vault values are always live.
     function getPublicSummary() external view returns (PublicSummary memory p) {
-        p.cash = $.token.balanceOf(address(this));
+        int256 v;
+        (v, p.cash, p.aaveValue, p.lpValue) = Invest.valuation($);
         p.reservedClaims = $.reservedClaims;
         p.totalRewardsOwed = $.totalRewardsOwed;
         p.outstandingPrincipal = $.outstandingPrincipal;
@@ -217,8 +224,7 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
             p.saverPot = $.saverPot;
             p.wActive = Weights.accrued($.wActive, $.sActive, $.wActiveLast, e);
             p.wSaver = Weights.accrued($.wSaver, $.sSaver, $.wSaverLast, e);
-            p.yieldPot = (p.cash + p.outstandingPrincipal).toInt256()
-                - (p.reservedClaims + p.totalRewardsOwed + p.saverPot).toInt256() - p.sTotal.toInt256();
+            p.yieldPot = v - p.sTotal.toInt256();
         } else {
             p.sTotal = $.finalSTotal;
             p.saverPot = $.finalSaverPot;

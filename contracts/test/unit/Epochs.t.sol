@@ -349,9 +349,10 @@ contract EpochsTest is CircleTestBase {
             h = keccak256(abi.encode(h, c.getMember(ms[i])));
         }
         KuberCircle.CircleState memory s = c.getCircleState();
-        h = keccak256(
-            abi.encode(h, c.getPublicSummary(), s.settledEpoch, s.cursor, _h(c).wActiveAt(7), _h(c).wSaverAt(7))
-        );
+        KuberCircle.PublicSummary memory p = c.getPublicSummary();
+        // The cash/vault split depends on when a payment lands relative to the rebalance; total assets do not.
+        (p.cash, p.aaveValue, p.lpValue) = (p.cash + p.aaveValue + p.lpValue, 0, 0);
+        h = keccak256(abi.encode(h, p, s.settledEpoch, s.cursor, _h(c).wActiveAt(7), _h(c).wSaverAt(7)));
     }
 
     function _assertSame(KuberCircle a, KuberCircle b, address[] memory ms) internal view {
@@ -458,7 +459,8 @@ contract SettleRandomTest is CircleTestBase {
     }
 
     // Once, before a settlement of an epoch after `shiftAt`: mint to the circle, or drain it (a stand-in for an
-    // M3 investment loss). The loss is capped at sTotal; above that the saver pot is unbacked (02-03 finding).
+    // investment loss; `drain` pulls from the vaults first). The loss is capped only by what the circle holds; a
+    // loss above all savings cuts the savers' pot at the freeze (R-U).
     function _shiftPot() internal {
         shifted = true;
         uint256 amt = uint256(potShift < 0 ? -int256(potShift) : int256(potShift)) * 1e5;
@@ -466,8 +468,9 @@ contract SettleRandomTest is CircleTestBase {
             usdc.mint(address(c), amt);
             shift += int256(amt);
         } else {
-            uint256 s = c.getPublicSummary().sTotal;
-            amt = amt > s ? s : amt;
+            KuberCircle.PublicSummary memory p = c.getPublicSummary();
+            uint256 held = p.cash + p.aaveValue + p.lpValue;
+            amt = amt > held ? held : amt;
             _h(c).drain(address(0xdead), amt);
             shift -= int256(amt);
         }
@@ -592,12 +595,14 @@ contract SettleRandomTest is CircleTestBase {
             sumW += w[i];
             sumS += m.savings;
         }
-        // Model of the freeze: cash = savings + fines + shift; yieldPot = shift; no savers left -> pot takes fines.
+        // Model of the freeze: cash = savings + fines + shift; the savers' pot is cut to the cash (R-U); yieldPot =
+        // cash − pool − savings; no savers left -> pot takes the pool. The single drain rarely reaches the R-U path;
+        // test_RU_lossAboveSavingsCutsSaverPot covers it.
         uint256 cash = uint256(int256(sumS + fines) + shift);
-        int256 pot = shift;
-        uint256 pool = fines;
+        uint256 pool = cash < fines ? cash : fines;
+        int256 pot = int256(cash) - int256(pool) - int256(sumS);
         if (sumW == 0) {
-            pot += int256(fines);
+            pot += int256(pool);
             pool = 0;
         }
         KuberCircle.PublicSummary memory p = c.getPublicSummary();

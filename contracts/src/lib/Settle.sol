@@ -12,6 +12,7 @@ import {
     Member,
     MemberStatus
 } from "./CircleTypes.sol";
+import {Invest} from "./Invest.sol";
 import {ShareOut} from "./ShareOut.sol";
 import {Weights} from "./Weights.sol";
 
@@ -42,7 +43,10 @@ library Settle {
         $.cursor = 0;
         _apply($);
         _fund($);
-        _rebalance($);
+        // The final settlement skips this: finalize redeems everything. The returned values feed the M6 manager
+        // track record (R-K).
+        // slither-disable-next-line unused-return
+        if (k < $.fixedParams.totalEpochs) Invest.rebalance($);
         _reimburse($);
         $.settledEpoch = k.toUint8();
         emit IKuberCircleEvents.EpochSettled(k);
@@ -79,10 +83,6 @@ library Settle {
     // M4 fills this: fund the loan queue (skipped while settlement is behind), expire stale requests.
     // solhint-disable-next-line no-empty-blocks
     function _fund(CircleStorage.Layout storage) private pure {}
-
-    // M3 fills this: rebalance toward the allocation.
-    // solhint-disable-next-line no-empty-blocks
-    function _rebalance(CircleStorage.Layout storage) private pure {}
 
     // M7 fills this: reimburse the caller's gas.
     // solhint-disable-next-line no-empty-blocks

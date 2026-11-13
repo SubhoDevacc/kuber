@@ -29,9 +29,20 @@ abstract contract CircleTestBase is Test {
         // Without these, the first non-zero vault accrual reverts NotMinter (Phase 1 lesson).
         usdc.setMinter(address(aave), true);
         usdc.setMinter(address(lp), true);
+        _seedVaults();
         registry = new KuberRegistry(address(this), makeAddr("treasury"));
         factory = new KuberFactory(registry, IERC20(address(usdc)), address(aave), address(lp), _implementation());
         registry.setFactory(address(factory));
+    }
+
+    /// @dev Dead shares, so no third party can inflate a near-empty vault's share price; M8's deploy script does
+    /// the same.
+    function _seedVaults() internal virtual {
+        usdc.mint(address(this), 2e6);
+        usdc.approve(address(aave), 1e6);
+        aave.deposit(1e6, address(0xdEaD));
+        usdc.approve(address(lp), 1e6);
+        lp.deposit(1e6, address(0xdEaD));
     }
 
     function _implementation() internal virtual returns (address) {
