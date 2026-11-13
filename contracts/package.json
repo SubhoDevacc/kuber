@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "build": "forge build",
-    "test": "forge test"
+    "test": "forge test",
+    "lint": "solhint --max-warnings 0 --noPoster --disc 'src/**/*.sol' && forge fmt --check"
   },
   "devDependencies": {
     "solhint": "6.2.5"

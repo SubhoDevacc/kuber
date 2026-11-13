@@ -14,6 +14,15 @@ test("codegen exports only Kuber contract ABIs", async () => {
   ]) {
     expect(names).not.toContain(leaked);
   }
+  // M1 contracts must be generated.
+  for (const name of [
+    "MockUSDC",
+    "MockAaveVault",
+    "MockLPVault",
+    "KuberRegistry",
+  ]) {
+    expect(names).toContain(name);
+  }
   const allowed: readonly string[] = kuberContracts;
   for (const name of names) expect(allowed).toContain(name);
 });
