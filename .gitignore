@@ -1,0 +1,11 @@
+.DS_Store
+node_modules/
+.env
+.env.*
+!.env.example
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+deployments/local.json
+packages/shared/src/generated.ts
+apps/web/dist/

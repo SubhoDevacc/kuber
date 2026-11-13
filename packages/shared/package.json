@@ -1,0 +1,19 @@
+{
+  "name": "@kuber/shared",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "wagmi generate && tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "viem": "2.57.19",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@kuber/contracts": "workspace:*",
+    "@wagmi/cli": "2.10.1",
+    "typescript": "6.0.3",
+    "vitest": "5.1.0"
+  }
+}

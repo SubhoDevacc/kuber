@@ -1,0 +1,11 @@
+{
+  "name": "@kuber/contracts",
+  "private": true,
+  "scripts": {
+    "build": "forge build",
+    "test": "forge test"
+  },
+  "devDependencies": {
+    "solhint": "6.2.5"
+  }
+}

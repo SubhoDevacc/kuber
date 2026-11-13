@@ -1,0 +1,15 @@
+{
+  "name": "@kuber/scripts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "viem": "2.57.19"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "typescript": "6.0.3"
+  }
+}
