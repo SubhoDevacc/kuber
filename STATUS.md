@@ -53,7 +53,7 @@ Every item below is a real on-chain transaction; what is simplified is who decid
 3. Removing a member by vote and late joining with a sponsor have contract support but no screens.
 4. Seed data, live APY sync, offline support, end-to-end browser tests in the repo, Lighthouse.
 5. A private Fuji RPC endpoint (the public one rate-limits under load).
-6. Moving the practice chain to its own Avalanche L1 (today it is a private test chain started by the server for each visitor).
+6. Moving the practice circles to Kuber's Avalanche L1, Quiet Pine (chain id 524941, live on Fuji since 2026-11-14). Today the practice chain is a private test chain started by the server for each visitor, and the Kuber contracts are not deployed on Quiet Pine yet.
 
 ## How to run
 

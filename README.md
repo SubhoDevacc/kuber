@@ -5,7 +5,7 @@
 A small group saves the same amount each round. The pooled money is put to work. Members can borrow against their own savings, or borrow more when friends back them. If a borrower stops paying, their own savings pay first, then only the members who backed them. **If you backed nobody, nobody else's default can touch your savings.**
 
 - **Live demo:** <https://kuber-production.up.railway.app>
-- **Network:** Avalanche Fuji testnet (chain id 43113)
+- **Network:** Avalanche Fuji testnet (C-Chain, chain id 43113), plus Kuber's own Avalanche L1, Quiet Pine (chain id 524941)
 - **Built by:** Subham Mandal
 
 ## It is on-chain: check it yourself
@@ -41,10 +41,27 @@ Every contract below is deployed on Avalanche Fuji and its source is verified. O
 
 Deployed at block 61,038,808. The same addresses are in [`deployments/fuji.json`](deployments/fuji.json).
 
+### Kuber's own Avalanche L1: Quiet Pine
+
+Kuber has its own Avalanche L1 on the Fuji testnet, created on 2026-11-14.
+
+| | |
+|---|---|
+| Name | Quiet Pine |
+| EVM chain id | `524941` |
+| Blockchain id | `21hNosZu1zWB5VVjnLwAFJNM8muqsGYHPVaDoWfz8VDmVvLd5C` |
+| RPC URL | `https://managed-nodes.avax.network/ext/bc/21hNosZu1zWB5VVjnLwAFJNM8muqsGYHPVaDoWfz8VDmVvLd5C/rpc` |
+| Gas token | QUIET |
+| Validator manager (on Fuji C-Chain) | [`0xc7450e9ad4847162f92b1b8d7fe03191b5f2ebd2`](https://testnet.snowtrace.io/address/0xc7450e9ad4847162f92b1b8d7fe03191b5f2ebd2) |
+
+To add it to a wallet, use the chain id and RPC URL above.
+
+**What runs where today:** the Kuber contracts and the real app run on the Fuji C-Chain (addresses above). The tutorial's practice circles run on a private practice chain and record every step on the Fuji C-Chain. Quiet Pine is live and is the planned home for the practice circles; the Kuber contracts are not deployed on it yet.
+
 ### How to check a transaction
 
 - **In the real app:** every action (create, join, save, borrow, back, repay, vote, collect) is a transaction from your own wallet on Fuji. The result line shows its hash; tap it for the details, then "View on Snowtrace".
-- **In the tutorial:** the practice circle runs on a private chain so rounds can be skipped, and the app shows each transaction's details. Every step is also recorded by a real transaction on Fuji in `KuberPracticeLog`, and the app links to it on Snowtrace.
+- **In the tutorial:** the practice circle runs on an Avalanche L1 so rounds can be skipped, and the app shows each transaction's details. Every step is also recorded by a real transaction on Fuji in `KuberPracticeLog`, and the app links to it on Snowtrace.
 - **Every circle is its own contract.** The circle page shows its address under "On the chain" with a Snowtrace link. The first circle created on Fuji is [`0x19abd310E071F6Bc8f650d11a9ec427A7F03A7Ca`](https://testnet.snowtrace.io/address/0x19abd310E071F6Bc8f650d11a9ec427A7F03A7Ca).
 
 ## Architecture
@@ -62,7 +79,7 @@ flowchart LR
     H[Host]
     A[Real-app server<br/>sign-up, test money,<br/>keeper, practice members]
     T[Tutorial server<br/>one per visitor]
-    PC[(Private practice chain<br/>one per visitor)]
+    PC[(Avalanche L1<br/>one per visitor)]
   end
   subgraph Fuji["Avalanche Fuji"]
     F[KuberFactory]
@@ -186,4 +203,4 @@ pnpm lint && pnpm check:versions
 
 ## Honest limits
 
-This is a proof of concept on a test network with test money. The token and the two vaults are mocks, the identity check is mocked, practice members are run by the server, and the tutorial's logic runs on a private chain with each step recorded on Fuji. [`STATUS.md`](STATUS.md) lists every shortcut and what a real version needs.
+This is a proof of concept on a test network with test money. The token and the two vaults are mocks, the identity check is mocked, practice members are run by the server, and the tutorial's logic runs on an Avalanche L1 with each step recorded on Fuji. [`STATUS.md`](STATUS.md) lists every shortcut and what a real version needs.
