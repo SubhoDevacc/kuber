@@ -4,9 +4,11 @@ A savings circle on Avalanche where the rules hold the money, not a person.
 
 A small group saves the same amount each round. The pooled money is put to work. Members can borrow against their own savings, or borrow more when other members back them. If a borrower stops paying, their own savings pay first, then only the members who backed them. **If you backed nobody, nobody else's default can touch your savings.**
 
+**Live demo: <https://kuber-production.up.railway.app>** — tap Start and play the tutorial. Every visitor gets a private test chain; nothing to install.
+
 Built by Subham Mandal.
 
-## Try it (about 3 minutes)
+## Run it yourself (about 3 minutes)
 
 You need [Foundry](https://getfoundry.sh) 1.9, Node 26 and pnpm 12.
 

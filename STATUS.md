@@ -17,7 +17,7 @@
 - `pnpm dev` starts a local chain, deploys the real contracts, and starts the server and the web app.
 - The server controls time on the local chain, so the tutorial never waits for a round and gives the same numbers every run.
 
-### Hosted demo
+### Hosted demo (live at https://kuber-production.up.railway.app)
 - `pnpm start:hosted` (and the `Dockerfile`) run everything as one process on one port. Every visitor gets a private test chain and server, so several people can run the tutorial at the same time.
 - The public chain endpoint only allows reading and sending signed transactions; time and balance controls are refused.
 - A test runs two users step by step in turn through the whole tutorial and checks both get the right payouts.
