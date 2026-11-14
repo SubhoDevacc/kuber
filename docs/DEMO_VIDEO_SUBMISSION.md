@@ -75,21 +75,21 @@ The 28-clip script in [DEMO_VIDEO.md](DEMO_VIDEO.md) is the older, longer plan f
 ### Part 5. Learning it in a practice circle
 | # | Screen | Tap | Voiceover |
 |---|---|---|---|
-| 5.0 | The "Tutorial mode" bar; the practice circle with six members | — | New accounts start in tutorial mode. You get a practice circle with five members the app runs: Bala, Chitra, Dev, Esha and Farhan. Every step you take is a real transaction against the real Kuber contracts, on a private practice chain. |
-| 5.1a | Chapter 1, "Join or create a circle"; then "Create your circle" | Create a circle, Create the circle | Chapter one is joining and saving. You can join Bala's circle, or create your own and invite the other five. |
-| 5.1b | "Allow your savings", then rounds 1 and 2 closing; savings 100, then 200 | Allow, Continue | You give the circle permission to collect your savings, one round at a time. Each round, all six members put in 100, and the circle collects it when the round closes. |
+| 5.0 | The "Tutorial mode" bar; the practice circle with six members | — | New accounts start in tutorial mode. You get a practice circle with five members the app runs: Bala, Chitra, Dev, Esha and Farhan. Every step you take is a real transaction, and each one is recorded on Avalanche's Fuji test network, where anyone can look it up. |
+| 5.1a | Chapter 1, "Join or create a circle"; then "Create your circle" | Create a circle, Create the circle | First, you get into a circle. You can join Bala's, or create your own and invite the other five. |
+| 5.1b | "Allow your savings", then rounds 1 and 2 closing; savings 100, then 200 | Allow, Continue | Then you give the circle permission to collect your savings, one round at a time. Each round, all six members put in 100, and the circle collects it when the round closes. |
 | 5.1c | "Your money at work": the pot split into cash, ready to lend, and invested | Continue | After two rounds the pot is working. Some is kept as cash, some is ready to lend, and the rest is invested. |
-| 5.2a | Chapter 2, "Save round 3 early" | Pay 100 now | Chapter two is borrowing. You need three rounds of savings to borrow, so you pay round three early. |
+| 5.2a | Chapter 2, "Save round 3 early" | Pay 100 now | Now say you want to borrow. You need three rounds of savings first, so you pay round three early. |
 | 5.2b | "Ask for a loan": 350 = 270 from your savings + 80 backed by Bala | Ask for 350 | Then you ask for 350. 270 can come from your own 300 in savings. The other 80 needs a backer, so Bala puts 80 of his savings on hold for your loan, and you pay him eight percent for it. |
 | 5.2c | "Your loan is ready", then "Take your loan"; the wallet goes up by 350 | Take 350 | When the round closes the loan is ready, and you move 350 into your wallet. |
 | 5.2d | Loans: Dev, 350, backed by Chitra and Esha | — | Dev borrows 350 in the same round, backed by Chitra and Esha. |
-| 5.3 | Chapter 3, "Repay, part 1" and "Repay, part 2"; then "Loan repaid" | Pay, Pay | Chapter three is repaying. You pay the loan back over two rounds, together with your normal savings. After the second payment the loan is closed. Bala earns 6.40 for backing you, and his 80 is free again. |
-| 5.4a | Chapter 4, "Vote in a fund manager"; then "Your vote is in" and Bala's "Fund manager" tag | Vote yes | Chapter four is voting. Chitra suggests making Bala the circle's fund manager. A fund manager suggests how the pot is invested, and everyone still votes on each plan. You vote yes, and Bala gets the job. |
-| 5.4b | "Vote on a rule"; then "The vote passed" | Vote yes | Then Bala suggests lowering the fee for leaving early from three percent to two. It passes with more than half of the six votes, and the new rule starts when the round closes. |
-| 5.5a | Chapter 5, "Dev stops paying"; Dev's row marked behind | Continue | Chapter five is a member who stops paying. Dev borrowed 350 and has paid nothing back. |
+| 5.3 | Chapter 3, "Repay, part 1" and "Repay, part 2"; then "Loan repaid" | Pay, Pay | Now you pay it back. The loan is repaid over two rounds, together with your normal savings. After the second payment the loan is closed. Bala earns 6.40 for backing you, and his 80 is free again. |
+| 5.4a | Chapter 4, "Vote in a fund manager"; then "Your vote is in" and Bala's "Fund manager" tag | Vote yes | Now say the group wants someone to look after the investing. Chitra suggests making Bala the circle's fund manager. A fund manager suggests how the pot is invested, and everyone still votes on each plan. You vote yes, and Bala gets the job. |
+| 5.4b | "Vote on a rule"; then "The vote passed" | Vote yes | Then Bala wants to change a rule, and suggests lowering the fee for leaving early from three percent to two. It passes with more than half of the six votes, and the new rule starts when the round closes. |
+| 5.5a | Chapter 5, "Dev stops paying"; Dev's row marked behind | Continue | Now suppose a member stops paying. Dev borrowed 350 and has paid nothing back. |
 | 5.5b | "Dev's loan was covered"; a bar of 350 fills: Dev 300, Chitra 30, Esha 20 | — | When the last round closes, the circle takes what he owes from his own savings first, which covers 300. Chitra vouched for him, so she covers the next 30. Esha backed him second, so she covers the last 20. |
 | 5.5c | You, Bala and Farhan with "lost 0"; Dev's debt of 106.75 | — | You, Bala and Farhan did not back Dev, and you lose nothing. Dev leaves owing 106.75, and he can't join another circle until he pays it. |
-| 5.6a | Chapter 6, "Collect your share-out"; then "Everyone was paid out" | Collect my share-out | Chapter six is the share-out. The circle has ended. Your share is your savings plus your part of what the circle earned, which is the interest paid on loans and 60 from investments. |
+| 5.6a | Chapter 6, "Collect your share-out"; then "Everyone was paid out" | Collect my share-out | At the end, everyone is paid out. The circle has ended, and your share is your savings plus your part of what the circle earned, which is the interest paid on loans and 60 from investments. |
 | 5.6b | Your payout, 712.04; then Farhan +14.08 and Bala +20.48; then Chitra −16.07 and Esha −6.02 | — | You collect 712. Farhan only saved, and he ends 14 ahead. Bala backed a loan that was repaid, and he ends 20 ahead. Chitra and Esha backed the loan that wasn't, and they end 16 and 6 behind. |
 
 ### Part 6. The real app
@@ -119,7 +119,7 @@ The 28-clip script in [DEMO_VIDEO.md](DEMO_VIDEO.md) is the older, longer plan f
 |---|---|---|
 | 8.1 | "Proof of concept · test money · simulated investments" | This is a proof of concept, built for a hackathon. The money is test money, and the investments are simulated and sped up. |
 | 8.2 | "The promise covers defaults." | The promise covers defaults. If the investments lose value, all the members share that loss. |
-| 8.3 | The factory contract address on Fuji | The contracts are deployed on Avalanche's Fuji test network. |
+| 8.3 | The factory contract address on Fuji | Every contract is deployed on Avalanche's Fuji test network. You can open each one on the public explorer and read its code. |
 
 ### Part 9. Close
 | # | On screen | Voiceover |

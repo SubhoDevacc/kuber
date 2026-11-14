@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="300" viewBox="0 0 840 300" role="img" aria-labelledby="title desc">
+  <title id="title">Kuber — Save your money together</title>
+  <desc id="desc">Kuber's green and gold banner, with its circle mark and six people around a shared savings pot.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#095438"/>
+      <stop offset="1" stop-color="#083d2b"/>
+    </linearGradient>
+    <linearGradient id="coin" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe6a3"/>
+      <stop offset="1" stop-color="#edbd53"/>
+    </linearGradient>
+    <clipPath id="frame"><rect width="840" height="300"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <rect width="840" height="300" fill="url(#background)"/>
+    <circle cx="682" cy="150" r="186" fill="#ffffff" opacity=".035"/>
+    <circle cx="682" cy="150" r="148" fill="none" stroke="#ffffff" stroke-opacity=".09"/>
+    <circle cx="682" cy="150" r="112" fill="none" stroke="#ffffff" stroke-opacity=".13"/>
+
+    <!-- The same six-dot mark used by the app's Wordmark component. -->
+    <g transform="translate(61 52) scale(1.85)">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="#ffffff" stroke-width="2.4"/>
+      <circle cx="12" cy="3" r="3" fill="#edbd53"/>
+      <circle cx="19.794" cy="7.5" r="2" fill="#ffffff"/>
+      <circle cx="19.794" cy="16.5" r="2" fill="#ffffff"/>
+      <circle cx="12" cy="21" r="2" fill="#ffffff"/>
+      <circle cx="4.206" cy="16.5" r="2" fill="#ffffff"/>
+      <circle cx="4.206" cy="7.5" r="2" fill="#ffffff"/>
+    </g>
+    <text x="117" y="82" fill="#ffffff" font-family="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif" font-size="36" font-weight="800" letter-spacing="-1.5">Kuber</text>
+
+    <text x="60" y="160" fill="#ffffff" font-family="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif" font-size="45" font-weight="800" letter-spacing="-2.4">Save your money</text>
+    <text x="60" y="213" fill="#edbd53" font-family="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif" font-size="45" font-weight="800" letter-spacing="-2.4">together.</text>
+    <text x="61" y="259" fill="#d8ebdf" font-family="system-ui, -apple-system, 'Segoe UI', Arial, sans-serif" font-size="17" font-weight="500">A savings circle for friends</text>
+
+    <!-- Members surround a shared pot; the gold centre represents the pooled savings. -->
+    <circle cx="682" cy="150" r="81" fill="#0d6544" stroke="#8ebba1" stroke-opacity=".55" stroke-width="2"/>
+    <circle cx="682" cy="150" r="56" fill="#e2f3e8" opacity=".12"/>
+    <path d="M661 153h42l-5 26c-.5 3-3 5-6 5h-20c-3 0-5.5-2-6-5z" fill="#edbd53"/>
+    <path d="M657 150h50" stroke="#ffe6a3" stroke-width="5" stroke-linecap="round"/>
+    <path d="M671 137h22" stroke="#ffe6a3" stroke-width="4" stroke-linecap="round"/>
+    <path d="M675 128h14" stroke="#ffe6a3" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="682" cy="69" r="13" fill="#edbd53" stroke="#fff0c9" stroke-width="3"/>
+    <circle cx="752" cy="110" r="11" fill="#e2f3e8" stroke="#ffffff" stroke-opacity=".6" stroke-width="2"/>
+    <circle cx="752" cy="190" r="11" fill="#e2f3e8" stroke="#ffffff" stroke-opacity=".6" stroke-width="2"/>
+    <circle cx="682" cy="231" r="11" fill="#e2f3e8" stroke="#ffffff" stroke-opacity=".6" stroke-width="2"/>
+    <circle cx="612" cy="190" r="11" fill="#e2f3e8" stroke="#ffffff" stroke-opacity=".6" stroke-width="2"/>
+    <circle cx="612" cy="110" r="11" fill="#e2f3e8" stroke="#ffffff" stroke-opacity=".6" stroke-width="2"/>
+  </g>
+</svg>
