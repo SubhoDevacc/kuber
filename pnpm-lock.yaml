@@ -270,6 +270,9 @@ importers:
       '@kuber/contracts':
         specifier: workspace:*
         version: link:../../contracts
+      '@types/node':
+        specifier: 26.6.6
+        version: 26.6.6
       '@wagmi/cli':
         specifier: 2.10.1
         version: 2.10.1(bufferutil@4.2.0)(typescript@6.0.3)(utf-8-validate@5.0.10)
@@ -298,6 +301,9 @@ importers:
       '@hono/node-server':
         specifier: 2.1.8
         version: 2.1.8(hono@4.13.18)
+      '@kuber/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@privy-io/node':
         specifier: 0.39.0
         version: 0.39.0(viem@2.57.19(bufferutil@4.2.0)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.6.7))
@@ -323,6 +329,9 @@ importers:
 
   services/keeper:
     dependencies:
+      '@kuber/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       viem:
         specifier: 2.57.19
         version: 2.57.19(bufferutil@4.2.0)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.6.7)

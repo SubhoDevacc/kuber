@@ -1,6 +1,7 @@
 {
   "name": "kuber",
   "private": true,
+  "author": "Subham Mandal",
   "type": "module",
   "packageManager": "pnpm@12.18.0",
   "engines": {
@@ -8,6 +9,7 @@
   },
   "scripts": {
     "check:versions": "node scripts/check-versions.ts",
+    "deploy:local": "node scripts/deploy.ts --network local",
     "dev": "node scripts/dev.ts",
     "lint": "biome check ."
   },

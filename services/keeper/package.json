@@ -8,6 +8,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@kuber/shared": "workspace:*",
     "viem": "2.57.19"
   },
   "devDependencies": {

@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:mock": "VITE_MOCK_API=1 vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run --passWithNoTests"
   },

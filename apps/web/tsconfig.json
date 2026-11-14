@@ -5,7 +5,10 @@
     "moduleResolution": "bundler",
     "lib": ["es2025", "dom", "dom.iterable"],
     "jsx": "react-jsx",
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "paths": {
+      "@kuber/shared": ["../../packages/shared/src/index.ts"]
+    }
   },
   "include": ["src", "vite.config.ts"]
 }

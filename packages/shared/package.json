@@ -2,6 +2,10 @@
   "name": "@kuber/shared",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./node": "./src/node.ts"
+  },
   "scripts": {
     "build": "wagmi generate && tsc --noEmit",
     "test": "vitest run"
@@ -12,6 +16,7 @@
   },
   "devDependencies": {
     "@kuber/contracts": "workspace:*",
+    "@types/node": "26.6.6",
     "@wagmi/cli": "2.10.1",
     "typescript": "6.0.3",
     "vitest": "5.1.0"

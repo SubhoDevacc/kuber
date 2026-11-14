@@ -1,10 +1,12 @@
 # Kuber — Demo Video Script
 
-27 short clips. Each clip answers one question and also works alone. The story and numbers follow [PRD.md](PRD.md) §7.
+**This is the full version, for after the submission.** Today's short cut, recorded from the sprint build where the tutorial is the app, is in [DEMO_VIDEO_SUBMISSION.md](DEMO_VIDEO_SUBMISSION.md).
+
+28 short clips. Each clip answers one question and also works alone. The story and numbers follow [PRD.md](PRD.md) §7.
 
 Two cuts are stitched from the same clips:
-- **Main:** the 17 story clips, about 6 min 45 s.
-- **Full:** all 27 clips, about 9 min 30 s. It covers every P0 feature in PRD §5.
+- **Main:** the 18 story clips, about 7 min 10 s.
+- **Full:** all 28 clips, about 10 min. It covers every P0 feature in PRD §5, plus tutorial mode.
 
 ## 1. Format
 - **Frame:** 9:16 vertical, 1080×1920, phone view.
@@ -12,6 +14,10 @@ Two cuts are stitched from the same clips:
 - **Two clip types:**
   - *Motion graphics:* rendered from code. Needs the app's logo, colours and fonts (the design system from M9).
   - *Phone:* a recording of the real app in a phone-size window, driven by `demo.ts --live`. Needs M9.
+- **App modes:** the app has two modes (`.planning/BACKLOG.md`, 2026-11-14).
+  - *Tutorial mode:* a new account starts here after onboarding, in a practice circle with 5 practice members and a guide panel. Clip T1 shows it.
+  - *Real app:* every other phone clip. Alice has finished the tutorial, so her practice circle is hidden.
+- **Network:** everything is recorded on local Anvil, where the script can skip time between rounds.
 - **Main circle:** "Sunrise Circle": 30 members, 100 per round, 7 rounds.
   - Alice (creates, borrows), Bob (vouches for Alice), Carol (only saves), Dave (defaults), Frank (vouches for Dave), Erin (agrees for Dave), 24 bots.
 - **Second circle:** "Harbor Circle", small, for the clips that would change the main story's numbers.
@@ -26,6 +32,7 @@ Clips play in this order. "Full" clips are skipped in the Main cut.
 | A2 | How does it work? | Motion graphics | — | 20 s | Main |
 | B0 | Do I need the app store? | Phone | Alice | 12 s | Full |
 | B1 | How do I start? | Phone | Alice | 28 s | Main |
+| T1 | How do I learn it? | Phone, tutorial mode | Alice | 28 s | Main |
 | B10 | How do I find a circle? | Phone | Ivan | 20 s | Full |
 | B2 | How do I make a circle? | Phone | Alice | 28 s | Main |
 | B3 | How does my friend join? | Phone | Bob | 24 s | Main |
@@ -86,10 +93,19 @@ Clips play in this order. "Full" clips are skipped in the Main cut.
 | 0–4 s | Welcome: "Save together. Borrow with your friends' backing." | Sign in | Open Kuber and sign in with your email. |
 | 4–8 s | Email and code entry, then the caption "Wallet created. No seed phrase." | Enter code | A wallet is made for you in the background. Nothing to write down. |
 | 8–12 s | Choose a display name: "Alice" | Continue | Pick a name your friends will know. |
-| 12–16 s | Verify identity, then the Verified badge | Verify | Verify once, so each person has one account. |
-| 16–20 s | Add money: "Buy with card" or "Transfer from another wallet" | Transfer | Now add money. Buy with a card… |
-| 20–24 s | QR code, wallet address, Copy button | — | …or scan this code to send from a wallet you already have. |
-| 24–28 s | Balance counts 0 to 10,000, then Home | — | The money lands, and you're ready. |
+| 12–16 s | Verify identity (the form is marked "test only"), then the Verified badge | Verify | Verify once, so each person has one account. |
+| 16–20 s | Notice: "20,000 test mUSDC added"; the balance shows 20,000 | — | Every new account starts with twenty thousand in test money. |
+| 20–24 s | Add money: "Buy with card" or "Transfer from another wallet" | Transfer | Need more? Buy with a card… |
+| 24–28 s | QR code, wallet address, Copy button | — | …or scan this code to send from a wallet you already have. |
+
+### T1. How do I learn it? (28 s, Alice, tutorial mode)
+| Time | Screen | Tap | Voiceover |
+|---|---|---|---|
+| 0–4 s | After onboarding: the practice circle opens under a "Tutorial mode" banner | Start | New accounts start in tutorial mode: a practice circle to learn in. |
+| 4–10 s | The practice circle: Alice and 5 practice members. The guide panel lists six chapters: Join and save · Borrow · Back someone · Vote · Default · Share-out | — | Five practice members join you, and a guide walks you through six short chapters. |
+| 10–16 s | Guide panel: "Pay your first round". After the tap, the "What just changed" card shows before and after numbers and a transaction link | Pay | Each step is one real action. Then a card shows what just changed, with the transaction behind it. |
+| 16–22 s | The Default chapter: Dave's savings pay first, his backers cover the rest, and Alice loses only what she pledged | — | You even watch a practice member default, and see exactly who pays. |
+| 22–28 s | "You're ready", then Explore in the real app. The menu shows the tutorial mode switch | Continue | Finish, or skip, and you're in the real app. You can come back from the menu any time. |
 
 ### B10. How do I find a circle? (20 s, Ivan)
 | Time | Screen | Tap | Voiceover |
@@ -316,7 +332,9 @@ Clips play in this order. "Full" clips are skipped in the Main cut.
 | Need | Why | Where it comes from |
 |---|---|---|
 | The web app | Every phone clip | M9 |
-| An **Add money** screen: Buy with card (faked; the dev faucet sends the money) and a QR with the wallet address (real) | B1 | New; not in PAGES.md yet |
+| The welcome grant: 20,000 test mUSDC at first sign-in, with its notice | B1 | M8 (08-CONTEXT D-11b) and M9 |
+| An **Add money** screen: Buy with card (faked; the dev faucet sends the money) and a QR with the wallet address (real) | B1 | M9 (BACKLOG) |
+| Tutorial mode: banner, guide panel, six chapters, "What just changed" card, "You're ready" | T1 | Its own slice after the M9 pages (BACKLOG) |
 | `demo.ts --live` where **Alice creates the circle** and the bots join after her invites | B2, B3. PRD §7 has her open an existing circle | A change to the M8 demo script |
 | Persona switch in the dev panel | Every clip that isn't Alice's | PAGES.md P16 |
 | "Harbor Circle", seeded with a manager vote, a late joiner, a removal and a leaver | B11, C4, C6, C7. These would break the main story's numbers ("the other 27 lose 0") | `seed.ts` |

@@ -9,3 +9,4 @@ contracts/broadcast/
 deployments/local.json
 packages/shared/src/generated.ts
 apps/web/dist/
+.planning/

@@ -3,11 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node src/index.ts",
+    "dev": "DEV_MODE=true node src/index.ts",
     "build": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@kuber/shared": "workspace:*",
     "@hono/node-server": "2.1.8",
     "@privy-io/node": "0.39.0",
     "hono": "4.13.18",

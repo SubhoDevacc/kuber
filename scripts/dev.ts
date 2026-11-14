@@ -1,10 +1,8 @@
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = join(import.meta.dirname, "..");
 const RPC = "http://127.0.0.1:8545";
-const SENDER = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"; // Anvil account #0's address; Anvil accounts are unlocked, so no key
 
 // foundryup installs to ~/.foundry/bin, which a plain shell may not have on PATH. Children inherit this.
 process.env.PATH = `${process.env.HOME}/.foundry/bin:${process.env.PATH}`;
@@ -66,19 +64,11 @@ if (chainId !== 31337) {
   process.exit(1);
 }
 
+// Deploys and writes deployments/local.json.
 const deploy = spawnSync(
-  "forge",
-  [
-    "script",
-    "script/Deploy.s.sol",
-    "--rpc-url",
-    RPC,
-    "--broadcast",
-    "--unlocked",
-    "--sender",
-    SENDER,
-  ],
-  { cwd: join(root, "contracts"), stdio: "inherit" },
+  process.execPath,
+  ["scripts/deploy.ts", "--network", "local", "--rpc", RPC],
+  { cwd: root, stdio: "inherit" },
 );
 if (deploy.status !== 0) {
   console.error(
@@ -86,13 +76,6 @@ if (deploy.status !== 0) {
   );
   process.exit(1);
 }
-
-mkdirSync(join(root, "deployments"), { recursive: true });
-writeFileSync(
-  join(root, "deployments", "local.json"),
-  `${JSON.stringify({ chainId }, null, 2)}\n`,
-);
-console.log(`deployed: deployments/local.json (chainId ${chainId})`);
 
 start(
   "pnpm --parallel --filter @kuber/dev-api --filter @kuber/keeper --filter @kuber/web run dev",

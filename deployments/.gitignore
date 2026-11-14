@@ -1,0 +1,2 @@
+# Test chains' deploys (scripts/deploy.ts on a chain id other than 31337).
+local-*.json
