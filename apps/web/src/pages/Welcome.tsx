@@ -19,22 +19,16 @@ const points = [
   },
 ];
 
-/** Neighbours adding coins to one clay pot. Generated with Codex; phone gets a square crop, laptop a wide one. */
+/** Young friends saving together, generated for the refreshed welcome screen. */
 function Hero() {
   return (
-    <picture className="block">
-      <source
-        media="(min-width: 768px)"
-        srcSet="/hero-wide.webp"
-        width={1200}
-        height={800}
-      />
+    <picture className="block overflow-hidden rounded-[2rem] border border-brand/15 bg-accent-soft shadow-[0_20px_50px_var(--color-shadow)]">
       <img
-        src="/hero-phone.webp"
-        width={780}
-        height={780}
-        alt="Five neighbours sitting around a small table, each dropping a gold coin into one clay pot."
-        className="aspect-[5/4] w-full object-cover object-[center_15%] [mask-image:linear-gradient(to_bottom,transparent,black_6%,black_82%,transparent)] md:aspect-[3/2] md:object-center md:[mask-image:radial-gradient(ellipse_at_center,black_72%,transparent_100%)]"
+        src="/hero-genz.webp"
+        width={1536}
+        height={1024}
+        alt="Five young friends adding gold coins to one shared savings pot."
+        className="aspect-[4/3] w-full object-cover object-center md:aspect-[3/2]"
       />
     </picture>
   );
@@ -51,23 +45,25 @@ export function Welcome({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <div className="mx-auto flex min-h-dvh max-w-6xl flex-col px-4 py-4 sm:px-6 sm:py-5">
-      <Wordmark />
-      <main className="flex-1 pt-2 pb-8 md:py-8">
-        <div className="grid items-center gap-1 md:grid-cols-[1.05fr_1fr] md:gap-10">
-          <div className="-mx-4 sm:mx-0 md:order-2">
+    <div className="mx-auto flex min-h-dvh max-w-6xl flex-col px-4 sm:px-6">
+      <header className="flex min-h-18 items-center border-b border-line py-4">
+        <Wordmark />
+      </header>
+      <main className="flex-1 pb-10 pt-7 md:py-12">
+        <div className="grid items-center gap-7 md:grid-cols-[1fr_1.05fr] md:gap-12">
+          <div className="md:order-2">
             <Hero />
           </div>
           <div className="md:order-1">
-            <h1 className="font-display text-[2.5rem] leading-[1.02] font-bold tracking-tight text-brand-deep sm:text-6xl">
+            <h1 className="max-w-[11ch] font-display text-[clamp(2.8rem,6vw,5rem)] leading-[0.98] font-extrabold tracking-[-0.055em] text-brand-deep">
               Save your money together.
             </h1>
-            <p className="mt-3 max-w-[32rem] text-base leading-relaxed text-ink sm:mt-4 sm:text-lg">
+            <p className="mt-5 max-w-[32rem] text-base leading-relaxed text-ink-2 sm:text-lg">
               Kuber is a savings circle: a small group saves the same amount
               each round, and members can borrow from the pot with friends
               backing them.
             </p>
-            <div className="mt-5 grid gap-2 sm:max-w-sm sm:gap-3">
+            <div className="mt-7 grid gap-3 sm:max-w-sm">
               {onSignIn && (
                 <Button className="w-full" onClick={onSignIn}>
                   Sign in
@@ -100,7 +96,7 @@ export function Welcome({
                   {error}
                 </p>
               )}
-              <p className="text-sm text-ink-2">
+              <p className="text-sm leading-relaxed text-ink-2">
                 {onSignIn
                   ? "Sign in with your email to get your own wallet on the Avalanche test network. Everything uses test money, and no real ID is needed."
                   : "This is a practice wallet with test money. Nothing here is real money, and no real ID is needed."}
@@ -109,11 +105,11 @@ export function Welcome({
           </div>
         </div>
 
-        <ul className="mt-8 grid gap-3 border-t border-line pt-6 md:mt-14 md:grid-cols-3 md:gap-5">
+        <ul className="mt-10 grid gap-3 border-t border-line pt-7 md:mt-16 md:grid-cols-3 md:gap-5">
           {points.map(({ image, title, text }) => (
             <li
               key={title}
-              className="arrive flex items-center gap-4 rounded-2xl border border-line bg-surface p-3 shadow-[0_10px_30px_var(--color-shadow)] md:block md:p-5"
+              className="app-card arrive flex items-center gap-4 rounded-3xl border border-line bg-surface p-4 transition-[transform,box-shadow] duration-200 md:block md:p-6"
             >
               <img
                 src={image}
@@ -122,10 +118,10 @@ export function Welcome({
                 alt=""
                 aria-hidden="true"
                 loading="lazy"
-                className="size-20 shrink-0 rounded-xl object-cover md:mb-3 md:size-24"
+                className="size-20 shrink-0 rounded-2xl bg-brand-soft object-cover md:mb-4 md:size-24"
               />
               <div>
-                <p className="font-display text-lg font-bold text-ink">
+                <p className="font-display text-lg font-extrabold tracking-tight text-ink">
                   {title}
                 </p>
                 <p className="mt-0.5 text-sm leading-relaxed text-ink-2">

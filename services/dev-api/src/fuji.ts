@@ -472,6 +472,8 @@ export const createFujiApp = async (env: FujiEnv) => {
             abi: vaultAbi,
             functionName: "setApy",
             args: [apy, t],
+            // fixed gas: the estimate is taken before the vault accrues interest, and the accrual mint then needs more
+            gas: 500_000n,
           });
         if (Number(sp) !== env.VAULT_SPEEDUP)
           await adminTx({
@@ -479,6 +481,8 @@ export const createFujiApp = async (env: FujiEnv) => {
             abi: vaultAbi,
             functionName: "setSpeedup",
             args: [env.VAULT_SPEEDUP],
+            // fixed gas: the estimate is taken before the vault accrues interest, and the accrual mint then needs more
+            gas: 500_000n,
           });
       }
       console.log(
@@ -522,6 +526,8 @@ export const createFujiApp = async (env: FujiEnv) => {
       abi: vaultAbi,
       functionName: "shock",
       args: [bps],
+      // fixed gas: the estimate is taken before the vault accrues interest, and the accrual mint then needs more
+      gas: 500_000n,
     });
     console.log(
       `keeper: LP pool moved ${bps > 0 ? "up" : "down"} ${Math.abs(bps) / 100}%`,

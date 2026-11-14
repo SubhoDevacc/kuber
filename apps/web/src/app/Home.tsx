@@ -20,10 +20,10 @@ function CircleRow({ c, go, cta }: { c: AppCircle; go: Go; cta?: string }) {
       <button
         type="button"
         onClick={() => go({ name: "circle", address: c.address })}
-        className="w-full rounded-2xl border border-line bg-surface p-4 text-left shadow-[0_10px_30px_var(--color-shadow)] transition-colors hover:border-brand active:scale-[0.98] motion-reduce:transform-none"
+        className="app-card w-full rounded-3xl border border-line bg-surface p-5 text-left transition-[border-color,box-shadow,transform] duration-200 hover:border-brand active:scale-[0.98] motion-reduce:transform-none"
       >
         <span className="flex items-start justify-between gap-3">
-          <span className="min-w-0 truncate font-display text-lg font-bold text-ink">
+          <span className="min-w-0 truncate font-display text-lg font-extrabold tracking-tight text-ink">
             {c.name}
           </span>
           <Chip
@@ -116,14 +116,14 @@ export function HomePage({ go }: { go: Go }) {
     <div className="min-h-dvh">
       <AppBar go={go} />
       <Page>
-        <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
+        <h1 className="font-display text-3xl font-extrabold tracking-[-0.04em] text-ink sm:text-4xl">
           Hi, {me.name}
         </h1>
-        <section className="on-dark arrive mt-5 rounded-3xl border border-brand bg-brand-deep p-5 text-white shadow-[0_10px_30px_var(--color-shadow)] sm:p-7">
+        <section className="brand-panel on-dark arrive mt-6 rounded-[2rem] border border-brand p-6 text-white sm:p-8">
           <p className="flex items-center gap-2 text-sm font-semibold text-white/80">
             <Wallet aria-hidden className="size-4" /> Your wallet
           </p>
-          <p className="num mt-3 font-display text-4xl font-bold tracking-tight sm:text-5xl">
+          <p className="num mt-4 font-display text-4xl font-extrabold tracking-[-0.05em] sm:text-5xl">
             {formatAmount(me.musdc)}
             <span className="ml-1 text-base font-medium text-accent">
               {" "}
@@ -133,7 +133,7 @@ export function HomePage({ go }: { go: Go }) {
           <p className="num mt-1 text-sm text-white/75">
             {formatAvax(me.avax)} AVAX for network fees
           </p>
-          <div className="mt-6 grid gap-2 sm:grid-cols-2">
+          <div className="mt-7 grid gap-3 sm:grid-cols-2">
             <Button
               className="w-full !bg-accent !text-brand-deep hover:!bg-accent-soft active:scale-[0.98] motion-reduce:transform-none"
               onClick={() => go({ name: "create" })}
@@ -168,7 +168,7 @@ export function HomePage({ go }: { go: Go }) {
 
         {invited.length > 0 && (
           <>
-            <h2 className="mt-8 font-display text-xl font-bold text-ink">
+            <h2 className="mt-9 font-display text-xl font-extrabold tracking-tight text-ink">
               Invited
             </h2>
             <ul className="mt-3 grid gap-3">
@@ -179,7 +179,7 @@ export function HomePage({ go }: { go: Go }) {
           </>
         )}
 
-        <h2 className="mt-8 font-display text-xl font-bold text-ink">
+        <h2 className="mt-9 font-display text-xl font-extrabold tracking-tight text-ink">
           Your circles
           {mine.length > 0 && (
             <span className="num text-base font-medium text-ink-2">
@@ -199,7 +199,7 @@ export function HomePage({ go }: { go: Go }) {
             <span className="mt-2 block h-4 w-3/4 animate-pulse rounded bg-line/60 motion-reduce:animate-none" />
           </div>
         ) : mine.length === 0 ? (
-          <div className="arrive mt-3 rounded-2xl border border-line bg-surface p-5 text-center shadow-[0_10px_30px_var(--color-shadow)]">
+          <div className="app-card arrive mt-3 rounded-3xl border border-line bg-surface p-6 text-center">
             <img
               src="/empty-circles.webp"
               width={720}
@@ -227,7 +227,7 @@ export function HomePage({ go }: { go: Go }) {
 
         {open.length > 0 && (
           <>
-            <h2 className="mt-8 font-display text-xl font-bold text-ink">
+            <h2 className="mt-9 font-display text-xl font-extrabold tracking-tight text-ink">
               Open circles
             </h2>
             <ul className="mt-3 grid gap-3">

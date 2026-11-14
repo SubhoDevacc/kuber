@@ -22,16 +22,16 @@ export function Button({
 }: ButtonProps) {
   const look = {
     primary:
-      "bg-brand text-white hover:bg-brand-deep disabled:bg-brand/70 font-semibold shadow-[inset_0_-2px_0_var(--color-brand-deep)]",
+      "bg-brand text-white hover:bg-brand-deep disabled:bg-brand/70 font-bold shadow-[0_6px_16px_var(--color-shadow)]",
     secondary:
-      "bg-surface text-ink border border-line hover:border-brand hover:text-brand font-semibold",
+      "bg-surface text-brand border border-line hover:border-brand hover:bg-brand-soft font-bold",
     quiet:
-      "text-brand underline underline-offset-4 decoration-brand/40 hover:decoration-brand font-medium",
+      "text-brand underline underline-offset-4 decoration-brand/40 hover:decoration-brand font-semibold",
   }[variant];
   return (
     <button
       type="button"
-      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-5 text-base transition-colors disabled:cursor-not-allowed ${look} ${className}`}
+      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 text-base transition-[background-color,border-color,color,box-shadow,transform] duration-200 disabled:cursor-not-allowed ${look} ${className}`}
       aria-busy={busy || undefined}
       {...rest}
     >
@@ -97,7 +97,7 @@ const dotLook: Record<Tone, string> = {
 export function Chip({ tone, children }: { tone: Tone; children: ReactNode }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${chipLook[tone]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border border-current/10 px-2.5 py-1 text-xs font-bold whitespace-nowrap ${chipLook[tone]}`}
     >
       <span aria-hidden className={`size-1.5 rounded-full ${dotLook[tone]}`} />
       {children}
@@ -123,9 +123,11 @@ export function Section({
   aside?: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-line bg-surface p-4 sm:p-5">
+    <section className="app-card rounded-3xl border border-line bg-surface p-5 sm:p-6">
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h3 className="font-display text-lg font-bold text-ink">{title}</h3>
+        <h3 className="font-display text-lg font-extrabold tracking-tight text-ink">
+          {title}
+        </h3>
         {aside}
       </div>
       {children}
@@ -136,9 +138,13 @@ export function Section({
 export function Wordmark({ dark = false }: { dark?: boolean }) {
   return (
     <span
-      className={`inline-flex items-center gap-2 font-display text-xl font-bold tracking-tight ${dark ? "text-white" : "text-ink"}`}
+      className={`inline-flex items-center gap-2 font-display text-xl font-extrabold tracking-[-0.04em] ${dark ? "text-white" : "text-brand-deep"}`}
     >
-      <svg aria-hidden viewBox="0 0 24 24" className="size-6">
+      <svg
+        aria-hidden
+        viewBox="0 0 24 24"
+        className={`size-7 ${dark ? "text-white" : "text-brand"}`}
+      >
         <circle
           cx="12"
           cy="12"

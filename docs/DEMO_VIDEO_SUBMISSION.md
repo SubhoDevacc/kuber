@@ -84,7 +84,8 @@ The 28-clip script in [DEMO_VIDEO.md](DEMO_VIDEO.md) is the older, longer plan f
 | 5.2c | "Your loan is ready", then "Take your loan"; the wallet goes up by 350 | Take 350 | When the round closes the loan is ready, and you move 350 into your wallet. |
 | 5.2d | Loans: Dev, 350, backed by Chitra and Esha | — | Dev borrows 350 in the same round, backed by Chitra and Esha. |
 | 5.3 | Chapter 3, "Repay, part 1" and "Repay, part 2"; then "Loan repaid" | Pay, Pay | Chapter three is repaying. You pay the loan back over two rounds, together with your normal savings. After the second payment the loan is closed. Bala earns 6.40 for backing you, and his 80 is free again. |
-| 5.4 | Chapter 4, "Vote on a rule"; then "The vote passed" | Vote yes | Chapter four is voting. Bala suggests lowering the fee for leaving the circle early from three percent to two. It passes if more than half of the six members vote yes. You vote, it passes, and the new rule starts when the round closes. |
+| 5.4a | Chapter 4, "Vote in a fund manager"; then "Your vote is in" and Bala's "Fund manager" tag | Vote yes | Chapter four is voting. Chitra suggests making Bala the circle's fund manager. A fund manager suggests how the pot is invested, and everyone still votes on each plan. You vote yes, and Bala gets the job. |
+| 5.4b | "Vote on a rule"; then "The vote passed" | Vote yes | Then Bala suggests lowering the fee for leaving early from three percent to two. It passes with more than half of the six votes, and the new rule starts when the round closes. |
 | 5.5a | Chapter 5, "Dev stops paying"; Dev's row marked behind | Continue | Chapter five is a member who stops paying. Dev borrowed 350 and has paid nothing back. |
 | 5.5b | "Dev's loan was covered"; a bar of 350 fills: Dev 300, Chitra 30, Esha 20 | — | When the last round closes, the circle takes what he owes from his own savings first, which covers 300. Chitra vouched for him, so she covers the next 30. Esha backed him second, so she covers the last 20. |
 | 5.5c | You, Bala and Farhan with "lost 0"; Dev's debt of 106.75 | — | You, Bala and Farhan did not back Dev, and you lose nothing. Dev leaves owing 106.75, and he can't join another circle until he pays it. |
@@ -92,16 +93,17 @@ The 28-clip script in [DEMO_VIDEO.md](DEMO_VIDEO.md) is the older, longer plan f
 | 5.6b | Your payout, 712.04; then Farhan +14.08 and Bala +20.48; then Chitra −16.07 and Esha −6.02 | — | You collect 712. Farhan only saved, and he ends 14 ahead. Bala backed a loan that was repaid, and he ends 20 ahead. Chitra and Esha backed the loan that wasn't, and they end 16 and 6 behind. |
 
 ### Part 6. The real app
-The wording here is matched to the finished screens when recording.
-
 | # | Screen | Tap | Voiceover |
 |---|---|---|---|
 | 6.1 | "You did it", then Home | Continue | When the tutorial ends you are in the real app, on Avalanche's Fuji test network. |
-| 6.2 | Create a circle: name, saving per round, number of rounds, round length | Create a circle | To create a circle, you give it a name, the amount each person saves per round, the number of rounds, and how long a round lasts. Creating it is one transaction. |
-| 6.3 | The circle page, forming: share link, countdown; a second phone opens the link and joins | Share, Join | Share the link with your friends. Each of them signs in, opens the circle and joins. The circle starts once five people are in. |
-| 6.4 | "Add practice members"; four labelled practice members appear | Add practice members | If you are trying it alone, add practice members and the app fills the seats. |
-| 6.5 | The active circle: Save now, Borrow, Back a loan request, Repay, Vote, Propose, Leave | Save now | From then on it works like the tutorial, in real time. You save, borrow, back a friend's loan, repay, vote, propose a rule change, or leave. |
-| 6.6 | A result message with its explorer link; the transaction page on Snowtrace | Open the link | Every action is a transaction from your own wallet, and each one links to the public explorer, where anyone can check it. |
+| 6.2 | Create a circle: name, saving per round, number of rounds, round length | Create the circle | To create a circle, you give it a name, the amount each person saves per round, the number of rounds, and how long a round lasts. Creating it is one transaction. |
+| 6.3 | "Invite people" and the share link; a second phone shows "You're invited" | Invite people, Join the circle | Then you invite people and share the link. A friend opens it, sees that they are invited, and joins. The circle starts once five people are in. |
+| 6.4 | "Add practice members"; Gita, Hari, Indu and Jay appear, labelled as practice members | Add practice members | If you are trying it alone, add practice members and the app fills the seats. |
+| 6.5 | "Suggest a change": make a member the fund manager; the vote; the "Fund manager" tag | Suggest, Vote yes | This is where the investing friend comes in. Suggest a member as fund manager, and the circle votes. |
+| 6.6 | "Change the money plan": ready to lend, Aave, LP pool, cash, adding to 100% | Change the money plan | Once they are in, the manager can change the money plan: how much is ready to lend, how much goes to Aave, how much to the LP pool, and how much stays as cash. The group votes on every plan. |
+| 6.7 | The pot's "Earned so far" going up as rounds close. Caption: "Test investments, sped up for the demo" | — | As rounds close, you can watch what the pot has earned. |
+| 6.8 | "Back a loan request": "You could lose up to … · You earn …", with "Covers first" and "Covers second" | Back | When a friend asks for a loan, you can back it. Before you confirm, the app tells you in money what you could lose and what you will earn. You choose to cover first for the full rate, or second for half. |
+| 6.9 | A result message with its explorer link; the transaction page on Snowtrace | Open the link | Every action is a transaction from your own wallet, and each one links to the public explorer, where anyone can check it. |
 
 ### Part 7. What it fixes
 | # | On screen | Voiceover |
@@ -115,7 +117,7 @@ The wording here is matched to the finished screens when recording.
 ### Part 8. What this build is
 | # | On screen | Voiceover |
 |---|---|---|
-| 8.1 | "Proof of concept · test money · simulated investments" | This is a proof of concept, built for a hackathon. The money is test money and the investments are simulated. |
+| 8.1 | "Proof of concept · test money · simulated investments" | This is a proof of concept, built for a hackathon. The money is test money, and the investments are simulated and sped up. |
 | 8.2 | "The promise covers defaults." | The promise covers defaults. If the investments lose value, all the members share that loss. |
 | 8.3 | The factory contract address on Fuji | The contracts are deployed on Avalanche's Fuji test network. |
 
@@ -136,8 +138,8 @@ The wording here is matched to the finished screens when recording.
 | Need | Status |
 |---|---|
 | Tutorial mode working end to end | Built; record once the screens stop changing |
-| The real app on Fuji: create, share link, join, practice members, actions with explorer links | In progress (REAL-APP.md); Part 6 depends on it |
-| Fund manager (Part 2.3) | In the contracts and their tests. It is not on the app's screens today, so the video shows it as a graphic, not a recording |
-| Indian names in the app: Bala, Chitra, Dev, Esha, Farhan | The script and the voice use them. The app still shows Bob, Cara, Dave, Erin and Frank (6 files, about 120 mentions) and must be renamed before recording |
+| The real app on Fuji: create, share link, join, practice members, actions with explorer links | Built (commit M10) |
+| Fund manager, money plan, visible earnings, backing risk | Built (commit M11). Recorded in Parts 5.4a and 6.5 to 6.8 |
+| Indian names in the app: Bala, Chitra, Dev, Esha, Farhan | Done in the app; the real app's practice members are Gita, Hari, Indu and Jay |
 | Narration audio | Voice approved; the clips are made with `~/voice/kuber/make.sh` |
 | The submission's video rules (length limit, shape) | Not known yet |

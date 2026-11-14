@@ -121,7 +121,7 @@ export function WhatNext({
     <div className="mx-auto flex min-h-dvh max-w-xl flex-col px-4 py-5 sm:px-6">
       <Wordmark />
       <main className="flex flex-1 flex-col justify-center gap-4 py-8">
-        <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.04em] text-ink">
           What next?
         </h1>
         <p className="text-base text-ink-2">
@@ -130,7 +130,7 @@ export function WhatNext({
         <button
           type="button"
           onClick={onCreate}
-          className="flex min-h-20 items-center gap-4 rounded-2xl bg-brand p-4 text-left text-white shadow-[0_10px_30px_var(--color-shadow)]"
+          className="flex min-h-20 items-center gap-4 rounded-3xl bg-brand p-5 text-left text-white shadow-[0_12px_28px_var(--color-shadow)] transition-colors hover:bg-brand-deep"
         >
           <CirclePlus aria-hidden className="size-8 shrink-0 text-accent" />
           <span>
@@ -144,7 +144,7 @@ export function WhatNext({
         <button
           type="button"
           onClick={onJoin}
-          className="flex min-h-20 items-center gap-4 rounded-2xl border border-line bg-surface p-4 text-left text-ink"
+          className="app-card flex min-h-20 items-center gap-4 rounded-3xl border border-line bg-surface p-5 text-left text-ink transition-[border-color,box-shadow,transform] hover:border-brand"
         >
           <Users aria-hidden className="size-8 shrink-0 text-brand" />
           <span>

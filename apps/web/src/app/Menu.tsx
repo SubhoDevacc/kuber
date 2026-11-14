@@ -42,12 +42,12 @@ export function MenuPage({ go, onSignOut }: { go: Go; onSignOut: () => void }) {
         <header className="flex items-center gap-4">
           <span
             aria-hidden="true"
-            className="grid size-14 shrink-0 place-items-center rounded-2xl bg-accent font-display text-2xl font-bold text-brand-deep"
+            className="grid size-14 shrink-0 place-items-center rounded-2xl bg-accent font-display text-2xl font-extrabold text-brand-deep"
           >
             {me.name?.charAt(0).toUpperCase() || "K"}
           </span>
           <div className="min-w-0">
-            <h1 className="truncate font-display text-3xl font-bold tracking-tight text-ink">
+            <h1 className="truncate font-display text-3xl font-extrabold tracking-[-0.04em] text-ink">
               {me.name}
             </h1>
             <p className="num truncate font-mono text-xs text-ink-2">
@@ -56,9 +56,9 @@ export function MenuPage({ go, onSignOut }: { go: Go; onSignOut: () => void }) {
           </div>
         </header>
         <div className="mt-6 grid gap-5">
-          <section className="on-dark arrive rounded-3xl border border-brand bg-brand-deep p-5 text-white shadow-[0_10px_30px_var(--color-shadow)]">
+          <section className="brand-panel on-dark arrive rounded-[2rem] border border-brand p-6 text-white sm:p-8">
             <h2 className="text-sm font-semibold text-white/80">Your wallet</h2>
-            <p className="num mt-3 font-display text-3xl font-bold tracking-tight">
+            <p className="num mt-3 font-display text-3xl font-extrabold tracking-[-0.04em]">
               {formatAmount(me.musdc)}{" "}
               <span className="text-base font-medium text-accent">mUSDC</span>
             </p>

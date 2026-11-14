@@ -25,14 +25,14 @@ function AppHeader({
   const item =
     "flex min-h-11 cursor-pointer items-center rounded-lg px-3 text-base text-ink outline-none data-[highlighted]:bg-brand-soft";
   return (
-    <header className="border-b border-line bg-surface">
-      <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-2">
+    <header className="border-b border-line bg-surface/95 shadow-[0_3px_16px_rgb(8_61_43_/_0.04)] backdrop-blur">
+      <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
         <Wordmark />
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
             <button
               type="button"
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line px-3 font-semibold text-ink"
+              className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-line bg-paper px-3 font-bold text-brand hover:border-brand hover:bg-brand-soft"
             >
               <Menu aria-hidden className="size-5" />
               Menu
@@ -110,7 +110,7 @@ export function Home({
         onRestart={onRestart}
         onSignIn={onSignIn}
       />
-      <main className="mx-auto max-w-4xl px-4 py-6">
+      <main className="mx-auto max-w-4xl px-4 py-8">
         {busyNote && (
           <p
             role="status"
@@ -119,7 +119,7 @@ export function Home({
             {busyNote}
           </p>
         )}
-        <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
+        <h1 className="font-display text-3xl font-extrabold tracking-[-0.04em] text-ink sm:text-4xl">
           {me?.name ? `Hi, ${me.name}` : "Welcome back"}
         </h1>
         {me && (
@@ -131,7 +131,7 @@ export function Home({
             test mUSDC
           </p>
         )}
-        <h2 className="mt-8 font-display text-xl font-bold text-ink">
+        <h2 className="mt-9 font-display text-xl font-extrabold tracking-tight text-ink">
           Circles
         </h2>
         <div className="mt-3">
@@ -156,11 +156,11 @@ export function Home({
                   <button
                     type="button"
                     onClick={() => onOpen(c.address)}
-                    className="flex w-full items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4 text-left hover:border-brand"
+                    className="app-card flex w-full items-center justify-between gap-3 rounded-3xl border border-line bg-surface p-5 text-left transition-[border-color,box-shadow,transform] duration-200 hover:border-brand"
                   >
                     <span className="min-w-0">
                       <span className="flex flex-wrap items-center gap-2">
-                        <span className="font-display text-lg font-bold text-ink">
+                        <span className="font-display text-lg font-extrabold tracking-tight text-ink">
                           {c.name}
                         </span>
                         {c.practice && <PracticeTag />}

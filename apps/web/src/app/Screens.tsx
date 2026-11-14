@@ -43,13 +43,13 @@ export function AppBar({
   title?: string;
 }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur">
-      <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 px-2 py-2 sm:px-4">
+    <header className="sticky top-0 z-30 border-b border-line bg-surface/95 shadow-[0_3px_16px_rgb(8_61_43_/_0.04)] backdrop-blur">
+      <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 px-2 py-3 sm:px-4">
         {back ? (
           <button
             type="button"
             onClick={back}
-            className="inline-flex min-h-11 items-center gap-1 rounded-xl px-2 font-semibold text-brand"
+            className="inline-flex min-h-11 items-center gap-1 rounded-2xl px-2 font-bold text-brand hover:bg-brand-soft"
           >
             <ChevronLeft aria-hidden className="size-5" />
             {title ?? "Home"}
@@ -64,7 +64,7 @@ export function AppBar({
           <button
             type="button"
             onClick={() => go({ name: "menu" })}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line px-3 font-semibold text-ink"
+            className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-line bg-paper px-3 font-bold text-brand hover:border-brand hover:bg-brand-soft"
           >
             <MenuIcon aria-hidden className="size-5" />
             Menu
@@ -78,7 +78,7 @@ export function AppBar({
 
 export function Page({ children }: { children: ReactNode }) {
   return (
-    <main className="mx-auto max-w-3xl px-4 pt-5 pb-[max(2rem,env(safe-area-inset-bottom))]">
+    <main className="mx-auto max-w-3xl px-4 pt-7 pb-[max(2rem,env(safe-area-inset-bottom))] sm:pt-9">
       {children}
     </main>
   );
