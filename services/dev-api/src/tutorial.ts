@@ -1111,7 +1111,7 @@ export const tutorials = (
     }
     return null;
   };
-  /** One Fuji record per finished step; 4 s at most, and any failure just means no record. */
+  /** One Fuji record per finished step; waits for it to confirm (30 s at most); any failure just means no record. */
   const record = async (
     t: Tutorial,
     circle: Address,
@@ -1136,7 +1136,7 @@ export const tutorials = (
         step: cut(title),
         actions,
       }),
-      new Promise<null>((ok) => setTimeout(() => ok(null), 4_000).unref()),
+      new Promise<null>((ok) => setTimeout(() => ok(null), 30_000).unref()),
     ]).catch(() => null);
     if (!hash) return;
     const r: PublicRecord = {
@@ -1361,7 +1361,7 @@ export const tutorials = (
       done = { title: s.title, own };
       return view(t, a);
     });
-    // Outside the chain lock: the Fuji record never holds up the practice chain (4 s at most).
+    // Outside the chain lock: the Fuji record never holds up the practice chain (30 s at most).
     const run = locked.then(async (v) => {
       if (done && v.lastChange)
         await record(t, v.circle, done.title, done.own, v.lastChange);

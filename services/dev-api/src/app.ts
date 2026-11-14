@@ -52,7 +52,7 @@ export const createApp = async (env: Env) => {
               "x-internal-token": token,
             },
             body: JSON.stringify(entry),
-            signal: AbortSignal.timeout(4_000),
+            signal: AbortSignal.timeout(30_000),
           });
           if (!res.ok) return null;
           const { hash } = (await res.json()) as { hash?: unknown };

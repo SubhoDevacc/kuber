@@ -1855,16 +1855,20 @@ export const createFujiApp = async (env: FujiEnv) => {
         ],
         gas: 120_000n + 60_000n * BigInt(b.actions.length),
       });
-      // Answer at broadcast; the admin queue still waits for the receipt so later nonces stay in order.
-      // (60 s at most, so one lost record never stalls the admin's other transactions for long).
-      void serial(admin.address, () =>
+      // Answer once the record is confirmed on Fuji, so the explorer link always opens (owner's choice: the
+      // tutorial waits). 25 s at most; the admin queue waits with it so later nonces stay in order.
+      const receipt = await serial(admin.address, () =>
         c.pub
-          .waitForTransactionReceipt({ hash, timeout: 60_000 })
-          .catch((e) =>
-            console.error(`app: practice record ${hash}: ${firstLine(e)}`),
-          ),
+          .waitForTransactionReceipt({ hash, timeout: 25_000 })
+          .catch((e) => {
+            console.error(`app: practice record ${hash}: ${firstLine(e)}`);
+            return null;
+          }),
       );
-      return ctx.json({ hash });
+      return ctx.json({
+        hash,
+        block: receipt ? Number(receipt.blockNumber) : null,
+      });
     } catch (e) {
       console.error(`app: practice record not sent: ${firstLine(e)}`);
       return ctx.json({ error: "The record was not sent." }, 502);

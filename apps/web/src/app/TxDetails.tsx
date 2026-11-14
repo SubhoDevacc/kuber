@@ -215,7 +215,7 @@ export function TxDialog({
                   Public record
                 </h3>
                 <p className="mt-1 text-sm text-ink-2">
-                  The practice circle runs on a private chain. This step is also
+                  The practice circle runs on an Avalanche L1. This step is also
                   recorded on Avalanche Fuji, where anyone can check it.
                 </p>
                 <CopyHash hash={record.hash} />

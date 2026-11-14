@@ -74,7 +74,7 @@ function HistoryButton({
             Every transaction you sent in this tutorial. Tap a hash to see what
             it did.
             {recorded
-              ? " The practice circle runs on a private chain so rounds can be skipped. Every step is also recorded on Avalanche Fuji, where anyone can check it."
+              ? " The practice circle runs on an Avalanche L1 so rounds can be skipped. Every step is also recorded on Avalanche Fuji, where anyone can check it."
               : " Practice chain — not on a public explorer."}
           </Dialog.Description>
           {items.length === 0 ? (
@@ -555,11 +555,10 @@ export function Tutorial({
                       <p className="font-semibold">
                         {step.waitNote ?? "One moment…"}
                       </p>
-                      {step.waitNote && (
-                        <p className="text-ink-2">
-                          This can take a few seconds.
-                        </p>
-                      )}
+                      <p className="text-ink-2">
+                        Then the step is recorded on Avalanche Fuji. This can
+                        take a few seconds.
+                      </p>
                     </>
                   )}
                 </div>
