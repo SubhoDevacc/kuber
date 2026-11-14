@@ -36,7 +36,7 @@ const setSkipped = (on: boolean) => {
   }
 };
 
-export function App() {
+export function App({ onSignIn }: { onSignIn?: () => void } = {}) {
   const [key, setKey] = useState<Hex | null>(getKey);
   const [view, setView] = useState<View>({ name: "loading" });
   const [homeNote, setHomeNote] = useState<string | null>(null);
@@ -134,6 +134,7 @@ export function App() {
     case "welcome":
       return (
         <Welcome
+          onSignIn={onSignIn}
           onStart={async () => {
             const k = createKey();
             setKey(k);
@@ -166,6 +167,7 @@ export function App() {
           onOpen={(address) => setView({ name: "circle", address })}
           onTutorial={tutorialMode}
           onRestart={restart}
+          onSignIn={onSignIn}
         />
       );
     case "circle":

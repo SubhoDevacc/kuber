@@ -12,6 +12,7 @@
     "deploy:local": "node scripts/deploy.ts --network local",
     "dev": "node scripts/dev.ts",
     "lint": "biome check .",
+    "start:app": "node services/dev-api/src/fuji-server.ts",
     "start:hosted": "node services/dev-api/src/host.ts"
   },
   "devDependencies": {

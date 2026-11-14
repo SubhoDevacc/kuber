@@ -60,9 +60,18 @@ const waitFor = async (what: string, ok: () => Promise<boolean>) => {
   throw new Error(`${what} did not come up`);
 };
 
+// The real app's secrets stay with the host and its Fuji child; per-user chains and dev-apis never see them.
+const SECRETS = [
+  "FUJI_ADMIN_PRIVATE_KEY",
+  "SESSION_SECRET",
+  "PRIVY_APP_SECRET",
+] as const;
+const childEnv: NodeJS.ProcessEnv = { ...process.env };
+for (const k of SECRETS) delete childEnv[k];
+
 // Each child leads its own process group, so one group signal also stops what it started.
 const all = new Set<ChildProcess>();
-const launch = (cmd: string, args: string[], env = process.env) => {
+const launch = (cmd: string, args: string[], env = childEnv) => {
   const child = spawn(cmd, args, {
     cwd: root,
     env,
@@ -149,6 +158,35 @@ const dep = JSON.parse(readFileSync(DEPLOYMENT, "utf8")) as {
   await stopAndWait(check.child);
 }
 
+// --- The real app (REAL-APP.md): one shared Fuji server child when FUJI_ADMIN_PRIVATE_KEY is set. ---
+const APP_OFF = "The real app is not set up on this server";
+let appUrl: string | null = null;
+const startApp = async () => {
+  const port = await freePort();
+  const url = `http://127.0.0.1:${port}`;
+  const child = launch(
+    process.execPath,
+    ["services/dev-api/src/fuji-server.ts"],
+    { ...process.env, APP_PORT: String(port), APP_HOST: "127.0.0.1" },
+  );
+  child.on("exit", (code) => {
+    appUrl = null;
+    console.error(`real app server exited (${code}); restarting in 5 s`);
+    setTimeout(() => void startApp().catch(() => {}), 5_000).unref();
+  });
+  try {
+    await waitFor(
+      "real app server",
+      async () => (await fetch(`${url}/api/app/health`)).ok,
+    );
+    appUrl = url;
+    console.log("real app server ready");
+  } catch (err) {
+    console.error(`real app server: ${String((err as Error).message)}`);
+  }
+};
+if (process.env.FUJI_ADMIN_PRIVATE_KEY) void startApp();
+
 // --- Per-user instances. ---
 type Entry = {
   last: number;
@@ -182,7 +220,7 @@ const boot = async (key: string, e: Entry) => {
   // NODE_ENV is passed through untouched (the guard above); dev-api binds loopback only.
   watch(
     launch(process.execPath, ["services/dev-api/src/index.ts"], {
-      ...process.env,
+      ...childEnv,
       RPC_URL: a.rpc,
       PORT: String(apiPort),
       DEV_MODE: "true",
@@ -234,8 +272,48 @@ const limit = bodyLimit({
 });
 
 app.get("/api/health", (c) =>
-  c.json({ ok: true, chainId: dep.chainId, usdc: dep.usdc }),
+  c.json({
+    ok: true,
+    chainId: dep.chainId,
+    usdc: dep.usdc,
+    factory: dep.factory,
+  }),
 );
+
+app.all("/api/app/*", limit, async (c) => {
+  if (!process.env.FUJI_ADMIN_PRIVATE_KEY)
+    return c.json({ error: APP_OFF }, 503);
+  if (!appUrl)
+    return c.json(
+      { error: "The real app is starting. Try again in a moment." },
+      503,
+    );
+  const url = new URL(c.req.url);
+  const hasBody = c.req.method !== "GET" && c.req.method !== "HEAD";
+  const auth = c.req.header("authorization");
+  const res = await fetch(`${appUrl}${url.pathname}${url.search}`, {
+    method: c.req.method,
+    headers: {
+      ...(auth ? { authorization: auth } : {}),
+      "content-type": c.req.header("content-type") ?? "application/json",
+    },
+    body: hasBody ? await c.req.arrayBuffer() : undefined,
+  }).catch(() => null);
+  if (!res)
+    return c.json(
+      {
+        error:
+          "The real app is not available right now. Try again in a moment.",
+      },
+      503,
+    );
+  return new Response(res.body, {
+    status: res.status,
+    headers: {
+      "content-type": res.headers.get("content-type") ?? "application/json",
+    },
+  });
+});
 
 app.all("/api/*", limit, async (c) => {
   const auth = c.req.header("authorization");

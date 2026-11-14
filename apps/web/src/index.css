@@ -1,23 +1,26 @@
 @import "tailwindcss";
 
-/* Kuber: a passbook for a group. Pale sage paper, deep peacock ink, one marigold accent for "you" and "what changed". */
+/* Kuber: a passbook for a group. Warm off-white paper, deep forest green ink and brand, one true gold for "you" and "what changed".
+   Gold is a fill colour only; text on paper uses ink, brand, or warn (all at least 4.5:1). */
 @theme {
-  --color-paper: #eef2ef;
-  --color-surface: #ffffff;
-  --color-ink: #10302a;
-  --color-ink-2: #46594f;
-  --color-line: #d2dcd6;
-  --color-brand: #0e5a52;
-  --color-brand-deep: #0a453f;
-  --color-brand-soft: #dcebe7;
-  --color-accent: #f0b23b;
-  --color-accent-soft: #fcefd2;
-  --color-good: #1b6a41;
-  --color-good-soft: #e2f0e7;
+  --color-paper: #f6f0e6;
+  --color-surface: #fffdf7;
+  --color-ink: #132a1f;
+  --color-ink-2: #4d5c50;
+  --color-line: #e2dccb;
+  --color-brand: #17583b;
+  --color-brand-deep: #0f3d29;
+  --color-brand-soft: #e2ede0;
+  --color-accent: #d4a52a;
+  --color-accent-soft: #f8ecc8;
+  --color-good: #1d6a37;
+  --color-good-soft: #e1efdf;
   --color-bad: #b42318;
   --color-bad-soft: #fbe8e6;
-  --color-warn: #8a5300;
-  --color-warn-soft: #fbefd9;
+  --color-warn: #7f5200;
+  --color-warn-soft: #faeed6;
+  /* Soft shadows tinted with the brand ink, for sheets and menus. */
+  --color-shadow: rgb(15 61 41 / 0.14);
 
   --font-sans:
     system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
@@ -60,7 +63,7 @@ body {
   outline-color: var(--color-accent);
 }
 
-/* A number that just changed gets a brief marigold wash. */
+/* A number that just changed gets a brief gold wash. */
 @keyframes flash {
   0% {
     background-color: var(--color-accent);

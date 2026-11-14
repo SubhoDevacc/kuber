@@ -58,3 +58,46 @@ describe("toArgs", () => {
     expect(() => toArgs(kuberCircleAbi as Abi, "vote", ["1"])).toThrow();
   });
 });
+
+describe("toArgs structs", () => {
+  it("turns a createCircle struct's digit strings into bigints by field type", async () => {
+    const { kuberFactoryAbi } = await import("@kuber/shared");
+    const [name, fixed, , invites] = toArgs(
+      kuberFactoryAbi as Abi,
+      "createCircle",
+      [
+        "Practice circle (Maya)",
+        {
+          contribution: "100000000",
+          epochDuration: 60,
+          lockBps: 2000,
+          startTime: "1794632776",
+          minSaveEpochs: 3,
+          totalEpochs: 7,
+          minMembers: 5,
+          maxMembers: 50,
+          maxRepayEpochs: 3,
+          cooldownEpochs: 1,
+        },
+        {
+          ownLtvBps: 9000,
+          ownRateBps: 300,
+          perLoanMaxBps: 5000,
+          fastLaneBps: 3000,
+          penaltyBps: 1000,
+          contribFineBps: 100,
+          installFineBps: 300,
+          exitFeeBps: 300,
+          managerFeeBps: 0,
+          alloc: { loan: 4000, aave: 3000, lp: 2000, cash: 1000 },
+        },
+        ["0x8C3229EC621644789d7F61FAa82c6d0E5F97d43D"],
+      ],
+    ) as [string, Record<string, unknown>, unknown, string[]];
+    expect(name).toBe("Practice circle (Maya)");
+    expect(fixed.contribution).toBe(100000000n);
+    expect(fixed.startTime).toBe(1794632776n);
+    expect(fixed.epochDuration).toBe(60n);
+    expect(invites).toHaveLength(1);
+  });
+});

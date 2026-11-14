@@ -2,6 +2,7 @@
 import { Hono } from "hono";
 import { type Address, getAddress, isAddress } from "viem";
 import { z } from "zod";
+import { activity } from "./activity.ts";
 import { connect, type Env } from "./chain.ts";
 import { readFacts, toSnapshot } from "./snapshot.ts";
 import { HttpError, type Tutorial, tutorials } from "./tutorial.ts";
@@ -23,7 +24,10 @@ const NameBody = z.object({
       "A name is 3 to 24 letters, digits, spaces or dashes.",
     ),
 });
-const NextBody = z.object({ stepId: z.string().max(40).optional() });
+const NextBody = z.object({
+  stepId: z.string().max(40).optional(),
+  choice: z.enum(["join", "create"]).optional(),
+});
 const CIRCLE_STATUS = ["Forming", "Active", "Completed", "Cancelled"];
 
 export const createApp = async (env: Env) => {
@@ -33,6 +37,8 @@ export const createApp = async (env: Env) => {
   const tut = tutorials(c, facts);
   const users = new Map<string, User>();
   const grant = BigInt(env.WELCOME_GRANT_MUSDC) * 1_000_000n;
+  // Anvil has no getLogs range limit: one big chunk.
+  const history = activity(c, 1_000_000n);
 
   const app = new Hono<{ Variables: { user: User } }>();
 
@@ -51,7 +57,12 @@ export const createApp = async (env: Env) => {
   app.notFound((ctx) => ctx.json({ error: "There is nothing here." }, 404));
 
   app.get("/health", (ctx) =>
-    ctx.json({ ok: true, chainId: c.chainId, usdc: c.usdc }),
+    ctx.json({
+      ok: true,
+      chainId: c.chainId,
+      usdc: c.usdc,
+      factory: c.factory,
+    }),
   );
 
   app.use("*", async (ctx, next) => {
@@ -190,8 +201,8 @@ export const createApp = async (env: Env) => {
   );
   app.post("/tutorial/next", async (ctx) => {
     const t = needTutorial(ctx.get("user"));
-    const { stepId } = await body(ctx, NextBody);
-    return ctx.json(await tut.next(t, stepId));
+    const { stepId, choice } = await body(ctx, NextBody);
+    return ctx.json(await tut.next(t, stepId, choice));
   });
   app.post("/tutorial/reset", async (ctx) =>
     ctx.json(await start(ctx.get("user"))),
@@ -249,6 +260,46 @@ export const createApp = async (env: Env) => {
     return ctx.json(
       toSnapshot(f, names, tut.practice.has(address.toLowerCase())),
     );
+  });
+
+  // Transaction history (REAL-APP.md "transaction history"): same shape as the real app's routes.
+  const namesOf = (circle: Address, me: Address) => {
+    const names = new Map(tut.practice.get(circle.toLowerCase()) ?? []);
+    for (const o of users.values())
+      if (o.name) names.set(o.address.toLowerCase(), o.name);
+    return (a: Address) =>
+      a.toLowerCase() === me.toLowerCase()
+        ? "You"
+        : (names.get(a.toLowerCase()) ?? `${a.slice(0, 6)}…${a.slice(-4)}`);
+  };
+  app.get("/circles/:address/activity", async (ctx) => {
+    const raw = ctx.req.param("address");
+    if (!isAddress(raw, { strict: false }))
+      throw new HttpError(400, "That is not a circle address.");
+    const address = getAddress(raw);
+    const me = ctx.get("user").address;
+    const rows = await history.forCircle(address, namesOf(address, me));
+    return ctx.json(rows.map(({ actor: _a, ...r }) => r));
+  });
+  app.get("/activity", async (ctx) => {
+    const u = ctx.get("user");
+    const key = u.address.toLowerCase();
+    const circles = [...tut.practice.entries()]
+      .filter(([, names]) => names.has(key))
+      .map(([a]) => getAddress(a));
+    const out = [];
+    for (const circle of circles) {
+      const name = (
+        await c.read<{ name: string }>(circle, abis.circle, "getCircleState")
+      ).name;
+      for (const { actor, ...r } of await history.forCircle(
+        circle,
+        namesOf(circle, u.address),
+      ))
+        if (actor === key) out.push({ ...r, circle: name });
+    }
+    out.sort((x, y) => y.block - x.block);
+    return ctx.json(out.slice(0, 200));
   });
 
   return { app, chain: c };

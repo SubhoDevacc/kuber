@@ -1,5 +1,7 @@
 # Hosted demo: one container, one public port (PORT, default 8080). services/dev-api/src/host.ts deploys the
-# contracts once at boot, then gives each user a private Anvil + dev-api. No secrets: local Anvil keys only.
+# contracts once at boot, then gives each user a private Anvil + dev-api (local Anvil keys only).
+# Real app (optional): set FUJI_ADMIN_PRIVATE_KEY, SESSION_SECRET, PRIVY_APP_ID, PRIVY_APP_SECRET as platform
+# secrets and the host also runs the shared Fuji server behind /api/app (never baked into the image).
 # NODE_ENV is deliberately not set: the per-user dev-api runs DEV_MODE=true (a sandbox by design) and refuses
 # NODE_ENV=production. Do not add it here or in the platform's variables.
 # Official Foundry release for linux/amd64, checked against the sha256 published on the GitHub release.
@@ -29,6 +31,8 @@ FROM base
 COPY . .
 RUN pnpm install --frozen-lockfile
 RUN cd contracts && forge build
+# Public by design: the Privy app id for the web build (an ARG is in the environment of RUN); empty = tutorial only.
+ARG VITE_PRIVY_APP_ID=""
 RUN pnpm --filter @kuber/shared build && pnpm --filter @kuber/web build
 EXPOSE 8080
 # node as process 1 so the platform's stop signal reaches the host and it can stop its children.

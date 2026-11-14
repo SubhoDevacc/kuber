@@ -129,6 +129,8 @@ export const readFacts = async (
   c: Chain,
   circle: Address,
   user: Address | null,
+  /** How to find the user's share-out once withdrawn; default: the Withdrawn event from block 0 (fine on Anvil). */
+  paidOutOf?: (circle: Address, user: Address) => Promise<bigint>,
 ): Promise<Facts> => {
   const { abis } = c;
   const [s, sum, list] = await Promise.all([
@@ -211,15 +213,17 @@ export const readFacts = async (
     : undefined;
   // The amount withdraw() paid is only in its Withdrawn event.
   const paid =
-    user && me?.withdrawn
-      ? ((await c.pub.getContractEvents({
-          address: circle,
-          abi: abis.circle,
-          eventName: "Withdrawn",
-          args: { member: user },
-          fromBlock: 0n,
-        } as never)) as unknown as { args: { amount: bigint } }[])
-      : [];
+    user && me?.withdrawn && paidOutOf
+      ? [{ args: { amount: await paidOutOf(circle, user) } }]
+      : user && me?.withdrawn
+        ? ((await c.pub.getContractEvents({
+            address: circle,
+            abi: abis.circle,
+            eventName: "Withdrawn",
+            args: { member: user },
+            fromBlock: 0n,
+          } as never)) as unknown as { args: { amount: bigint } }[])
+        : [];
   return {
     circle,
     name: s.name,

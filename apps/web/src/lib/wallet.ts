@@ -1,4 +1,4 @@
-import { kuberCircleAbi, mockUsdcAbi } from "@kuber/shared";
+import { kuberCircleAbi, kuberFactoryAbi, mockUsdcAbi } from "@kuber/shared";
 import {
   type Abi,
   BaseError,
@@ -7,6 +7,7 @@ import {
   createWalletClient,
   defineChain,
   http,
+  type PublicClient,
 } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import type { Action, Hex } from "../types";
@@ -31,43 +32,73 @@ export function createKey(): Hex {
 
 export const addressOf = (key: Hex) => privateKeyToAccount(key).address;
 
-const chain = defineChain({
-  id: 31337,
-  name: "Kuber practice chain",
-  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-  rpcUrls: { default: { http: ["/rpc"] } },
-});
+const practiceChain = (id = 31337) =>
+  defineChain({
+    id,
+    name: "Kuber practice chain",
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+    rpcUrls: { default: { http: ["/rpc"] } },
+  });
+const chain = practiceChain();
 
-let usdcAddress: Hex | null = null;
-async function usdc(): Promise<Hex> {
-  if (usdcAddress) return usdcAddress;
+type Health = { usdc?: Hex; factory?: Hex; chainId?: number };
+let health: Health | null = null;
+/** The practice chain's contract addresses, from the tutorial server's `/health`. */
+export async function practiceContracts(): Promise<Health> {
+  if (health?.usdc) return health;
   const res = await fetch("/api/health").catch(() => null);
-  const body = (await res?.json().catch(() => null)) as { usdc?: Hex } | null;
-  if (!body?.usdc)
+  health = ((await res?.json().catch(() => null)) as Health | null) ?? {};
+  return health;
+}
+async function contract(target: Action["target"]): Promise<Hex> {
+  const h = await practiceContracts();
+  const a = target === "factory" ? h.factory : h.usdc;
+  if (!a)
     throw new PlainError(
-      "Can't find the test money contract. Check the Kuber server is running.",
+      "Can't find that contract. Check the Kuber server is running.",
     );
-  usdcAddress = body.usdc;
-  return usdcAddress;
+  return a;
+}
+
+/** Reads the practice chain through /rpc (the hosted server routes it by this wallet's header). */
+export function practiceReader(address: Hex): PublicClient {
+  return createPublicClient({
+    chain,
+    transport: http(new URL("/rpc", location.origin).toString(), {
+      fetchOptions: { headers: { authorization: `Bearer dev:${address}` } },
+    }),
+  });
 }
 
 /** An error whose message is already fit to show. */
 export class PlainError extends Error {}
 
-/** Sends the step's transaction from the practice wallet and waits for it to land. Returns the hash. */
+/**
+ * Sends the step's transaction from the practice wallet and waits for it to land. `onSent` fires with the hash
+ * as soon as it is broadcast; the result carries the block it was confirmed in.
+ */
 export async function sendAction(
   key: Hex,
   circle: Hex,
   action: Action,
-): Promise<Hex> {
+  onSent?: (hash: Hex) => void,
+): Promise<{ hash: Hex; block: bigint }> {
   if (MOCK) {
     await new Promise((r) => setTimeout(r, 900));
     mockNoteTx();
     const rand = crypto.getRandomValues(new Uint8Array(32));
-    return `0x${[...rand].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+    const hash: Hex = `0x${[...rand].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+    return { hash, block: 0n };
   }
-  const abi = (action.target === "usdc" ? mockUsdcAbi : kuberCircleAbi) as Abi;
-  const address = action.target === "usdc" ? await usdc() : circle;
+  const abi = (
+    action.target === "usdc"
+      ? mockUsdcAbi
+      : action.target === "factory"
+        ? kuberFactoryAbi
+        : kuberCircleAbi
+  ) as Abi;
+  const address =
+    action.target === "circle" ? circle : await contract(action.target);
   const account = privateKeyToAccount(key);
   // The hosted server routes /rpc to this wallet's own chain by this header; the Vite proxy ignores it.
   const transport = http(new URL("/rpc", location.origin).toString(), {
@@ -75,6 +106,8 @@ export async function sendAction(
       headers: { authorization: `Bearer dev:${account.address}` },
     },
   });
+  // 31337 everywhere today; a test server on another chain id says so in /health.
+  const chain = practiceChain((await practiceContracts()).chainId);
   const wallet = createWalletClient({ account, chain, transport });
   const reader = createPublicClient({ chain, transport });
   try {
@@ -86,13 +119,14 @@ export async function sendAction(
       chain,
       account,
     });
+    onSent?.(hash);
     const receipt = await reader.waitForTransactionReceipt({ hash });
     if (receipt.status !== "success") {
       throw new PlainError(
         "That didn't go through. Nothing was taken from your wallet.",
       );
     }
-    return hash;
+    return { hash, block: receipt.blockNumber };
   } catch (err) {
     console.error(err);
     if (err instanceof PlainError) throw err;

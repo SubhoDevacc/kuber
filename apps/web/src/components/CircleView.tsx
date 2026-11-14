@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { formatAmount, isZero, percent } from "../lib/money";
 import type { CircleSnapshot } from "../types";
 import { Ring } from "./Ring";
@@ -43,6 +44,23 @@ function Stat({
       >
         <Amount value={value} />
       </dd>
+    </div>
+  );
+}
+
+/** One segment per round: done in green, the current round in gold. */
+function RoundTrack({ c }: { c: CircleSnapshot }) {
+  const done =
+    c.status === "Completed" ? c.totalRounds : Math.max(0, c.round - 1);
+  return (
+    <div aria-hidden className="mt-3 flex gap-1">
+      {Array.from({ length: c.totalRounds }, (_, i) => (
+        <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: rounds are positional
+          key={i}
+          className={`h-1.5 flex-1 rounded-full ${i < done ? "bg-brand" : i === done && c.status === "Active" ? "bg-accent" : "bg-line"}`}
+        />
+      ))}
     </div>
   );
 }
@@ -97,7 +115,14 @@ function PotBreakdown({ c }: { c: CircleSnapshot }) {
   );
 }
 
-export function CircleView({ c }: { c: CircleSnapshot }) {
+export function CircleView({
+  c,
+  top,
+}: {
+  c: CircleSnapshot;
+  /** Shown right under the circle's name (the real app's action area). */
+  top?: ReactNode;
+}) {
   const you = c.you;
   return (
     <div className="grid gap-4">
@@ -111,10 +136,21 @@ export function CircleView({ c }: { c: CircleSnapshot }) {
           per round.
         </p>
       </header>
+      {top}
 
       <Section title="The pot">
+        {/* Phones: the total and a round track; the ring needs more room than a phone has. */}
+        <div className="mb-4 md:hidden">
+          <p className="font-display text-[2rem] leading-none font-bold text-ink">
+            <Amount value={c.pot.total} />
+            <span className="ml-1.5 text-sm font-normal text-ink-2">
+              mUSDC in the pot
+            </span>
+          </p>
+          <RoundTrack c={c} />
+        </div>
         <div className="grid items-center gap-5 md:grid-cols-[minmax(0,340px)_1fr]">
-          <div className="flex justify-center">
+          <div className="hidden justify-center md:flex">
             <Ring
               seats={
                 // Before you join, keep your seat visible and empty.
@@ -174,19 +210,27 @@ export function CircleView({ c }: { c: CircleSnapshot }) {
                 key={m.address}
                 className={`px-1 py-3 ${tone === "bad" ? "rounded-lg bg-bad-soft/60" : m.you ? "rounded-lg bg-accent-soft/60" : ""}`}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
+                <div className="flex items-center gap-3">
+                  <span
+                    aria-hidden
+                    className={`grid size-9 shrink-0 place-items-center rounded-full font-display text-sm font-bold ${m.you ? "bg-accent text-ink" : tone === "bad" ? "bg-bad-soft text-bad ring-2 ring-bad" : tone === "warn" ? "bg-warn-soft text-warn ring-2 ring-warn/50" : "bg-brand-soft text-brand"}`}
+                  >
+                    {m.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold text-ink">
                       {m.name}
                       {m.you && m.name.toLowerCase() !== "you" && (
                         <span className="font-normal text-ink-2"> (you)</span>
                       )}
                     </p>
-                    {m.role && <p className="text-xs text-ink-2">{m.role}</p>}
+                    {m.role && (
+                      <p className="truncate text-xs text-ink-2">{m.role}</p>
+                    )}
                   </div>
                   <Chip tone={statusTone(m.status)}>{m.status}</Chip>
                 </div>
-                <dl className="mt-2 grid grid-cols-4 gap-2 text-sm">
+                <dl className="mt-2 grid grid-cols-4 gap-2 text-sm sm:pl-12">
                   <MemberStat label="Savings" value={m.savings} />
                   <MemberStat label="Loan" value={m.loanOwed} />
                   <MemberStat label="Backing" value={m.pledged} />

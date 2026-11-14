@@ -1,6 +1,6 @@
 import type { Abi, AbiParameter } from "viem";
 
-type Raw = string | number | boolean | string[];
+type Raw = string | number | boolean | string[] | Record<string, unknown>;
 
 function convert(param: AbiParameter, value: unknown): unknown {
   const { type } = param;
@@ -9,6 +9,19 @@ function convert(param: AbiParameter, value: unknown): unknown {
       throw new Error(`${param.name}: expected a list`);
     const inner = { ...param, type: type.slice(0, -2) } as AbiParameter;
     return value.map((v) => convert(inner, v));
+  }
+  if (type === "tuple" && "components" in param) {
+    // A struct arrives as a JSON object keyed by field name (or a list in field order).
+    const fields = param.components;
+    const get = (c: AbiParameter, i: number) =>
+      Array.isArray(value)
+        ? value[i]
+        : (value as Record<string, unknown> | null)?.[c.name ?? ""];
+    const out: Record<string, unknown> = {};
+    fields.forEach((c, i) => {
+      out[c.name ?? String(i)] = convert(c, get(c, i));
+    });
+    return out;
   }
   if (type.startsWith("uint") || type.startsWith("int")) {
     if (typeof value === "boolean")

@@ -1,3 +1,4 @@
+import type { ActivityItem } from "../app/appApi";
 import type {
   CircleSnapshot,
   CircleSummary,
@@ -65,9 +66,15 @@ export const api = {
   onboard: (name: string) => call<Onboarded>("POST", "/onboard", { name }),
   start: () => call<TutorialState>("POST", "/tutorial/start"),
   tutorial: () => call<TutorialState>("GET", "/tutorial"),
-  next: (stepId: string) =>
-    call<TutorialState>("POST", "/tutorial/next", { stepId }),
+  next: (stepId: string, choice?: string) =>
+    call<TutorialState>(
+      "POST",
+      "/tutorial/next",
+      choice === undefined ? { stepId } : { stepId, choice },
+    ),
   reset: () => call<TutorialState>("POST", "/tutorial/reset"),
   circles: () => call<CircleSummary[]>("GET", "/circles"),
   circle: (a: string) => call<CircleSnapshot>("GET", `/circles/${a}`),
+  activity: (a: string) =>
+    call<ActivityItem[]>("GET", `/circles/${a}/activity`),
 };

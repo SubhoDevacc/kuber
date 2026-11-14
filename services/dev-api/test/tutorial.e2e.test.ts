@@ -10,7 +10,7 @@ import {
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { kuberCircleAbi, mockUsdcAbi } from "@kuber/shared";
+import { kuberCircleAbi, kuberFactoryAbi, mockUsdcAbi } from "@kuber/shared";
 import {
   type Abi,
   type Address,
@@ -38,6 +38,26 @@ let anvil: ChildProcess;
 let rpc: string;
 let app: Awaited<ReturnType<typeof createApp>>["app"];
 let usdc: Address;
+let factory: Address;
+const samples: Record<string, unknown> = {};
+const SETTLES = [
+  "round1",
+  "round2",
+  "request",
+  "claim",
+  "repay1",
+  "vote",
+  "default",
+];
+/** Digit-only strings are uints, also inside objects (createCircle's tuples). */
+const toArgs = (x: unknown): unknown =>
+  typeof x === "string" && /^\d+$/.test(x)
+    ? BigInt(x)
+    : Array.isArray(x)
+      ? x.map(toArgs)
+      : x && typeof x === "object"
+        ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, toArgs(v)]))
+        : x;
 
 beforeAll(async () => {
   const port = await freePort();
@@ -93,8 +113,10 @@ beforeAll(async () => {
   ({ app } = await createApp(
     parseEnv({ RPC_URL: rpc, DEV_MODE: "true", DEPLOYMENT_PATH: deployment }),
   ));
-  usdc = ((await (await app.request("/health")).json()) as { usdc: Address })
-    .usdc;
+  ({ usdc, factory } = (await (await app.request("/health")).json()) as {
+    usdc: Address;
+    factory: Address;
+  });
 }, 120_000);
 
 afterAll(() => {
@@ -136,7 +158,7 @@ const balance = (pub: ReturnType<typeof createPublicClient>, a: Address) =>
   }) as Promise<bigint>;
 
 /** Plays the whole tutorial as a fresh user; returns the measured payouts and the final state. */
-const play = async (name: string) => {
+const play = async (name: string, choice: "join" | "create" = "join") => {
   const account = privateKeyToAccount(generatePrivateKey());
   const me = account.address;
   const pub = createPublicClient({
@@ -177,13 +199,23 @@ const play = async (name: string) => {
   expect(s.snapshot.members.length).toBe(5);
   expect((await api(me, "POST", "/tutorial/start")).json.circle).toBe(s.circle);
 
+  // The first step is the choice (no transaction).
+  samples[`${choice}: start step`] = s.step;
+  expect(s.step.id).toBe("start");
+  expect(s.step.action).toBeNull();
+  const ids: string[] = ["start"];
+  s = (await api(me, "POST", "/tutorial/next", { stepId: "start", choice }))
+    .json;
+  expect(s.choice).toBe(choice);
+  expect(s.stepIndex).toBe(1);
+  expect(s.lastChange.rows.length).toBeGreaterThan(0);
+
   // Skipping the action: 409 and no advance.
   const skip = await api(me, "POST", "/tutorial/next");
   expect(skip.status).toBe(409);
   expect(skip.json.error).toMatch(/\w/);
-  expect((await api(me, "GET", "/tutorial")).json.stepIndex).toBe(0);
+  expect((await api(me, "GET", "/tutorial")).json.stepIndex).toBe(1);
 
-  const ids: string[] = [];
   let payouts: bigint[] = [];
   while (!s.done) {
     ids.push(s.step.id);
@@ -193,12 +225,19 @@ const play = async (name: string) => {
     if (s.step.id === "withdraw")
       before = await Promise.all(people.map((p: Address) => balance(pub, p)));
     if (a) {
-      const args = a.args.map((x: unknown) =>
-        typeof x === "string" && /^\d+$/.test(x) ? BigInt(x) : x,
-      );
+      const args = toArgs(a.args) as unknown[];
       const hash = await wallet.writeContract({
-        address: a.target === "usdc" ? usdc : s.circle,
-        abi: (a.target === "usdc" ? mockUsdcAbi : kuberCircleAbi) as Abi,
+        address:
+          a.target === "usdc"
+            ? usdc
+            : a.target === "factory"
+              ? factory
+              : s.circle,
+        abi: (a.target === "usdc"
+          ? mockUsdcAbi
+          : a.target === "factory"
+            ? kuberFactoryAbi
+            : kuberCircleAbi) as Abi,
         functionName: a.functionName,
         args,
       });
@@ -207,7 +246,15 @@ const play = async (name: string) => {
       );
     }
     const prev = s.stepIndex;
-    if (s.step.id === "round1") {
+    const stepId = s.step.id;
+    if (stepId === "create") samples["create: create step"] = s.step;
+    if (s.step.options) {
+      expect(s.step.options.map((o: J) => o.value)).toEqual(["join", "create"]);
+      const r = await api(me, "POST", "/tutorial/next", { stepId, choice });
+      expect(r.status, JSON.stringify(r.json)).toBe(200);
+      s = r.json;
+      expect(s.choice).toBe(choice);
+    } else if (s.step.id === "round1") {
       // A double click: both answers show the same, single advance.
       const [x, y] = await Promise.all([
         api(me, "POST", "/tutorial/next"),
@@ -224,6 +271,22 @@ const play = async (name: string) => {
     expect(s.stepIndex).toBe(prev + 1);
     expect(s.lastChange?.title).toMatch(/\w/);
     expect(s.lastChange.rows.length).toBeGreaterThan(0);
+    // Every server transaction of the step is listed and real; a step that closes a round lists its settlement.
+    for (const tx of s.lastChange.txs) {
+      expect(tx.label).toMatch(/\w/);
+      expect((await pub.getTransactionReceipt({ hash: tx.hash })).status).toBe(
+        "success",
+      );
+    }
+    if (stepId === "request" || stepId === "create")
+      samples[`${choice}: lastChange after ${stepId}`] = s.lastChange;
+    if (SETTLES.includes(stepId))
+      expect(
+        s.lastChange.txs.some((x: J) =>
+          /^Round \d+ closed and settled$/.test(x.label),
+        ),
+        stepId,
+      ).toBe(true);
     if (before.length) {
       const after = await Promise.all(
         people.map((p: Address) => balance(pub, p)),
@@ -243,6 +306,31 @@ const play = async (name: string) => {
   expect((await api(me, "POST", "/tutorial/next")).json.stepIndex).toBe(
     s.stepIndex,
   );
+  // Transaction history: the circle's lines (newest first) and the user's own.
+  const act = await api(me, "GET", `/circles/${s.circle}/activity`);
+  expect(act.status).toBe(200);
+  const whats = act.json.map((e: J) => e.what);
+  expect(whats).toContain("You joined");
+  expect(whats).toContain("You asked to borrow 350.00");
+  expect(whats).toContain("Bob backed your loan with 80.00");
+  expect(whats).toContain("Round 7 closed");
+  expect(act.json[0].block).toBeGreaterThanOrEqual(act.json.at(-1).block);
+  const mine = await api(me, "GET", "/activity");
+  expect(mine.json.every((e: J) => e.who === "You")).toBe(true);
+  expect(
+    mine.json.some((e: J) =>
+      e.what.startsWith("You collected a share-out of 712.04"),
+    ),
+  ).toBe(true);
+  if (process.env.TUTORIAL_EXAMPLES)
+    writeFileSync(
+      process.env.TUTORIAL_EXAMPLES,
+      JSON.stringify(
+        { circle: act.json.slice(0, 12), mine: mine.json.slice(0, 6), samples },
+        null,
+        2,
+      ),
+    );
   return { me, s, ids, payouts };
 };
 
@@ -276,8 +364,15 @@ test("tutorial end to end: two users one after the other, then a reset", async (
   console.log(`steps: ${first.ids.join(", ")}`);
   console.log(`payouts (A..F): ${first.payouts.join(", ")}`);
 
-  const second = await play("Second User");
+  const second = await play("Second User", "create");
   checkEnd(second);
+  expect(second.ids.slice(0, 4)).toEqual([
+    "start",
+    "create",
+    "approve",
+    "begin",
+  ]);
+  console.log(`create path steps: ${second.ids.join(", ")}`);
   expect(second.s.circle).not.toBe(first.s.circle);
 
   const reset = (await api(second.me, "POST", "/tutorial/reset")).json;

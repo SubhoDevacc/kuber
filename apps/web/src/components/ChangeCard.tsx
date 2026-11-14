@@ -1,5 +1,16 @@
 import { ArrowRight, Check, TriangleAlert } from "lucide-react";
-import type { LastChange } from "../types";
+import { type TxChain, TxHash } from "../app/TxDetails";
+import { shortHash } from "../lib/wallet";
+import type { Hex, LastChange } from "../types";
+
+/** A hash that opens the details pop-up when the chain is known; plain text otherwise. */
+function Hash({ hash, chain }: { hash: Hex; chain?: TxChain }) {
+  return chain ? (
+    <TxHash hash={hash} chain={chain} />
+  ) : (
+    <span className="num">{shortHash(hash)}</span>
+  );
+}
 
 const toneText = {
   good: "text-good",
@@ -10,9 +21,12 @@ const toneText = {
 export function ChangeCard({
   change,
   tx,
+  chain,
 }: {
   change: LastChange;
-  tx?: string | null;
+  /** Your transaction for this step (already confirmed). */
+  tx?: { hash: Hex; block: bigint } | null;
+  chain?: TxChain;
 }) {
   return (
     <section
@@ -28,7 +42,12 @@ export function ChangeCard({
       >
         {change.title}
       </h3>
-      {tx && <p className="text-xs text-ink-2">Done. Transaction {tx}</p>}
+      {tx && (
+        <p className="text-xs text-ink-2">
+          Your transaction <Hash hash={tx.hash} chain={chain} /> confirmed
+          {tx.block > 0n ? ` in block ${tx.block}` : ""}.
+        </p>
+      )}
       {change.rows.length > 0 && (
         <ul className="mt-2 divide-y divide-accent/40 border-y border-accent/40">
           {change.rows.map((r) => (
@@ -69,6 +88,22 @@ export function ChangeCard({
       )}
       {change.note && (
         <p className="mt-2 text-sm leading-snug text-ink">{change.note}</p>
+      )}
+      {change.txs && change.txs.length > 0 && (
+        <div className="mt-2 border-t border-accent/40 pt-2">
+          <p className="text-xs font-semibold text-warn">On the chain</p>
+          <ul className="mt-1 grid gap-1">
+            {change.txs.map((t) => (
+              <li
+                key={t.hash}
+                className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm"
+              >
+                <span className="text-ink">{t.label}</span>
+                <Hash hash={t.hash} chain={chain} />
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </section>
   );

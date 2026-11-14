@@ -42,6 +42,8 @@ beforeAll(async () => {
     stdio: ["ignore", "ignore", "inherit"],
     env: {
       ...process.env,
+      // Never the real Fuji app in a test: without the key /api/app answers 503.
+      FUJI_ADMIN_PRIVATE_KEY: "",
       HOST: "127.0.0.1",
       PORT: String(port),
       WEB_DIST: dist,
@@ -53,6 +55,11 @@ beforeAll(async () => {
     if (res?.ok) usdc = ((await res.json()) as { usdc: Address }).usdc;
   }
   if (!usdc) throw new Error("host did not come up");
+  const off = await fetch(`${base}/api/app/me`);
+  expect(off.status).toBe(503);
+  expect(await off.json()).toEqual({
+    error: "The real app is not set up on this server",
+  });
 }, 180_000);
 
 afterAll(() => {

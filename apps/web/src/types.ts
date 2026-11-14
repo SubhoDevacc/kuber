@@ -3,9 +3,10 @@ export type Hex = `0x${string}`;
 
 export type Action = {
   label: string;
-  target: "usdc" | "circle";
+  target: "usdc" | "circle" | "factory";
   functionName: string;
-  args: (string | number | boolean | string[])[];
+  /** Structs (e.g. createCircle's params) arrive as objects keyed by field name. */
+  args: (string | number | boolean | string[] | Record<string, unknown>)[];
 };
 
 export type ChangeRow = {
@@ -19,7 +20,11 @@ export type LastChange = {
   title: string;
   rows: ChangeRow[];
   note: string | null;
+  /** The real transactions the server sent during the step (practice members, the settlement). Optional. */
+  txs?: { label: string; hash: Hex }[];
 };
+
+export type StepOption = { value: string; label: string; description: string };
 
 export type Member = {
   address: Hex;
@@ -95,6 +100,8 @@ export type TutorialState = {
     body: string;
     action: Action | null;
     waitNote: string | null;
+    /** A choice instead of an action: one button per option; the value goes back as `choice`. Optional. */
+    options?: StepOption[];
   };
   lastChange: LastChange | null;
   snapshot: CircleSnapshot;

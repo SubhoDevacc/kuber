@@ -22,7 +22,7 @@ export function Button({
 }: ButtonProps) {
   const look = {
     primary:
-      "bg-brand text-white hover:bg-brand-deep disabled:bg-brand/70 font-semibold shadow-[0_1px_0_rgba(16,48,42,0.25)]",
+      "bg-brand text-white hover:bg-brand-deep disabled:bg-brand/70 font-semibold shadow-[inset_0_-2px_0_var(--color-brand-deep)]",
     secondary:
       "bg-surface text-ink border border-line hover:border-brand hover:text-brand font-semibold",
     quiet:

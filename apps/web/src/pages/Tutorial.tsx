@@ -1,13 +1,101 @@
-import { ChevronDown, CircleAlert, LoaderCircle } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  ChevronDown,
+  ChevronUp,
+  CircleAlert,
+  History,
+  LoaderCircle,
+} from "lucide-react";
+import { Dialog } from "radix-ui";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ActivityList } from "../app/Activity";
+import type { ActivityItem } from "../app/appApi";
+import { type TxChain, TxHash } from "../app/TxDetails";
 import { ChangeCard } from "../components/ChangeCard";
 import { CircleView } from "../components/CircleView";
-import { Button } from "../components/ui";
+import { Button, Section } from "../components/ui";
 import { ApiError, api } from "../lib/api";
-import { PlainError, sendAction, shortHash } from "../lib/wallet";
+import { formatAmount } from "../lib/money";
+import {
+  addressOf,
+  PlainError,
+  practiceContracts,
+  practiceReader,
+  sendAction,
+} from "../lib/wallet";
 import type { Hex, TutorialState } from "../types";
 
-type Phase = "idle" | "sending" | "server";
+type Phase = "idle" | "sending" | "confirming" | "server";
+type Sent = { hash: Hex; block: bigint };
+type HistoryItem = { step: string; hash: Hex; block: string };
+
+const historyKey = (circle: Hex) => `kuber.history.${circle.toLowerCase()}`;
+function loadHistory(circle: Hex): HistoryItem[] {
+  try {
+    return JSON.parse(localStorage.getItem(historyKey(circle)) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+/** Every transaction you sent in this practice circle (step name + hash), newest first. */
+function HistoryButton({
+  items,
+  chain,
+}: {
+  items: HistoryItem[];
+  chain: TxChain;
+}) {
+  return (
+    <Dialog.Root>
+      <Dialog.Trigger asChild>
+        <button
+          type="button"
+          className="inline-flex min-h-11 items-center gap-1.5 self-center px-1 text-sm font-semibold text-brand underline underline-offset-4"
+        >
+          <History aria-hidden className="size-4" />
+          History ({items.length})
+        </button>
+      </Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-ink/50" />
+        <Dialog.Content className="fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto rounded-t-3xl bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-[0_-8px_30px_var(--color-shadow)] sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl">
+          <Dialog.Title className="font-display text-xl font-bold text-ink">
+            Your transactions
+          </Dialog.Title>
+          <Dialog.Description className="mt-1 text-sm text-ink-2">
+            Every transaction you sent in this tutorial. Tap a hash to see what
+            it did. Practice chain — not on a public explorer.
+          </Dialog.Description>
+          {items.length === 0 ? (
+            <p className="mt-4 text-sm text-ink-2">Nothing sent yet.</p>
+          ) : (
+            <ol className="mt-4 divide-y divide-line">
+              {items.map((h) => (
+                <li
+                  key={h.hash}
+                  className="flex flex-wrap items-baseline justify-between gap-x-3 py-2.5"
+                >
+                  <span className="text-sm font-semibold text-ink">
+                    {h.step}
+                  </span>
+                  <span className="text-sm text-ink-2">
+                    {h.block !== "0" && `block ${h.block} · `}
+                    <TxHash hash={h.hash} chain={chain} />
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+          <Dialog.Close asChild>
+            <Button variant="secondary" className="mt-4 w-full">
+              Close
+            </Button>
+          </Dialog.Close>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
 
 const WIDE = "(min-width: 1024px)";
 function useWide() {
@@ -88,8 +176,43 @@ export function Tutorial({
     afterTx: boolean;
   } | null>(null);
   const [sentFor, setSentFor] = useState<string | null>(null);
-  const [tx, setTx] = useState<string | null>(null);
-  const [lastTx, setLastTx] = useState<string | null>(null);
+  const [tx, setTx] = useState<Sent | null>(null);
+  const [pendingHash, setPendingHash] = useState<Hex | null>(null);
+  const [lastTx, setLastTx] = useState<Sent | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>(() =>
+    loadHistory(initial.circle),
+  );
+  const [contracts, setContracts] = useState<{ usdc?: Hex; factory?: Hex }>({});
+  useEffect(() => {
+    practiceContracts()
+      .then(setContracts)
+      .catch(() => {});
+  }, []);
+  const me = useMemo(() => addressOf(privateKey), [privateKey]);
+  // The circle's own history from the server (every member's transactions); hidden if the server has none.
+  const [activity, setActivity] = useState<ActivityItem[] | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refetch after every step
+  useEffect(() => {
+    api
+      .activity(t.circle)
+      .then(setActivity)
+      .catch(() => setActivity(null));
+  }, [t.circle, t.stepIndex]);
+  const reader = useMemo(() => practiceReader(me), [me]);
+  // Names for the details pop-up: the practice circle, its contracts and its members.
+  const chain = useMemo<TxChain>(() => {
+    const labels: Record<string, string> = {
+      [t.circle.toLowerCase()]: "This circle",
+      [me.toLowerCase()]: "You",
+    };
+    if (contracts.usdc)
+      labels[contracts.usdc.toLowerCase()] = "Test money (mUSDC)";
+    if (contracts.factory)
+      labels[contracts.factory.toLowerCase()] = "Circle factory";
+    for (const m of t.snapshot.members)
+      labels[m.address.toLowerCase()] ??= m.you ? "You" : m.name;
+    return { client: reader, explorer: null, labels };
+  }, [reader, me, contracts, t.circle, t.snapshot.members]);
   const [announce, setAnnounce] = useState("");
   const panel = useRef<HTMLDivElement>(null);
   const [panelHeight, setPanelHeight] = useState(0);
@@ -99,6 +222,9 @@ export function Tutorial({
   const [seenFor, setSeenFor] = useState<string | null>(null);
   const hasChange = t.lastChange !== null && t.stepIndex > 0;
   const reviewing = hasChange && !wide && seenFor !== t.step.id;
+  // On a phone the guide can fold down to its button so nothing on the page stays covered.
+  const [foldedFor, setFoldedFor] = useState<string | null>(null);
+  const folded = !wide && foldedFor === `${t.step.id}:${reviewing}`;
 
   useLayoutEffect(() => {
     const el = panel.current;
@@ -121,7 +247,7 @@ export function Tutorial({
     panel.current?.scrollTo({ top: 0 });
   }, [t.step.id, reviewing]);
 
-  function accept(next: TutorialState, doneTx: string | null) {
+  function accept(next: TutorialState, doneTx: Sent | null) {
     setLastTx(doneTx);
     setTx(null);
     setSentFor(null);
@@ -132,7 +258,7 @@ export function Tutorial({
     if (next.done) onDone(next);
   }
 
-  async function go(resend = false) {
+  async function go(resend = false, choice?: string) {
     setError(null);
     const step = t.step;
     let sent = false;
@@ -140,21 +266,44 @@ export function Tutorial({
     try {
       if (step.action && (resend || sentFor !== step.id)) {
         setPhase("sending");
+        setPendingHash(null);
         setAnnounce("Sending from your practice wallet.");
         try {
-          const hash = await sendAction(privateKey, t.circle, step.action);
-          doneTx = shortHash(hash);
-          setTx(doneTx);
+          const done = await sendAction(
+            privateKey,
+            t.circle,
+            step.action,
+            (hash) => {
+              setPendingHash(hash);
+              setPhase("confirming");
+            },
+          );
+          doneTx = done;
+          setTx(done);
           setSentFor(step.id);
           sent = true;
+          const item = {
+            step: step.title,
+            hash: done.hash,
+            block: done.block.toString(),
+          };
+          setHistory((h) => {
+            const next = [item, ...h.filter((x) => x.hash !== done.hash)];
+            try {
+              localStorage.setItem(historyKey(t.circle), JSON.stringify(next));
+            } catch {
+              // private mode: history lasts for this page only
+            }
+            return next;
+          });
           setAnnounce(
-            `Done. Transaction ${shortHash(hash)}. ${step.waitNote ?? ""}`,
+            `Confirmed in block ${done.block}. ${step.waitNote ?? ""}`,
           );
         } catch (err) {
           // The action may already be done (for example after a reload); ask the server before giving up.
           setPhase("server");
           try {
-            accept(await api.next(step.id), null);
+            accept(await api.next(step.id, choice), null);
             return;
           } catch {
             throw err;
@@ -164,7 +313,7 @@ export function Tutorial({
         setAnnounce(step.waitNote);
       }
       setPhase("server");
-      accept(await api.next(step.id), doneTx);
+      accept(await api.next(step.id, choice), doneTx);
     } catch (err) {
       console.error(err);
       const message =
@@ -203,14 +352,50 @@ export function Tutorial({
             Skip tutorial
           </button>
         </div>
+        {/* Phones: the two numbers you always want in view. */}
+        <div className="mx-auto flex max-w-6xl items-baseline justify-between gap-3 border-t border-white/15 px-4 py-2 lg:hidden">
+          <p className="text-sm text-white/85">
+            {t.snapshot.status === "Active"
+              ? `Round ${t.snapshot.round} of ${t.snapshot.totalRounds}`
+              : t.snapshot.status === "Forming"
+                ? "Not started yet"
+                : t.snapshot.status === "Completed"
+                  ? "All rounds done"
+                  : t.snapshot.status}
+          </p>
+          <p className="text-sm text-white/85">
+            In the pot{" "}
+            <span className="num font-display text-lg font-bold text-accent">
+              {formatAmount(t.snapshot.pot.total)}
+            </span>
+          </p>
+        </div>
       </div>
 
       <div className="mx-auto max-w-6xl px-4 pt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_460px] lg:gap-6 lg:pt-6">
         <main>
-          <div className="mb-4 rounded-2xl border border-line bg-surface p-4">
+          <div className="mb-3 lg:mb-4 lg:rounded-2xl lg:border lg:border-line lg:bg-surface lg:p-4">
             <ChapterProgress t={t} />
           </div>
           <CircleView c={t.snapshot} />
+          {activity && (
+            <div className="mt-4">
+              <Section
+                title="Activity"
+                aside={
+                  <span className="text-right text-xs text-ink-2">
+                    Practice chain — not on a public explorer
+                  </span>
+                }
+              >
+                <ActivityList
+                  items={activity}
+                  chain={chain}
+                  empty="No transactions yet."
+                />
+              </Section>
+            </div>
+          )}
           <div
             aria-hidden
             className="lg:hidden"
@@ -222,16 +407,39 @@ export function Tutorial({
         <aside
           ref={panel}
           aria-label="Guide"
-          className="fixed inset-x-0 bottom-0 z-20 max-h-[60dvh] overflow-y-auto rounded-t-3xl border-t border-line bg-surface shadow-[0_-8px_30px_rgba(16,48,42,0.14)] lg:sticky lg:top-[60px] lg:flex lg:max-h-[calc(100dvh-76px)] lg:flex-col lg:self-start lg:overflow-hidden lg:rounded-3xl lg:border lg:shadow-none"
+          className="fixed inset-x-0 bottom-0 z-20 max-h-[55dvh] overflow-y-auto rounded-t-3xl border-t border-line bg-surface shadow-[0_-8px_30px_var(--color-shadow)] lg:sticky lg:top-[60px] lg:flex lg:max-h-[calc(100dvh-76px)] lg:flex-col lg:self-start lg:overflow-hidden lg:rounded-3xl lg:border lg:shadow-none"
         >
+          {!wide && (
+            <button
+              type="button"
+              aria-expanded={!folded}
+              onClick={() =>
+                setFoldedFor(folded ? null : `${t.step.id}:${reviewing}`)
+              }
+              className="sticky top-0 z-10 flex min-h-11 min-w-full flex-col items-center justify-center gap-1 bg-surface pt-1.5 text-xs font-semibold text-ink-2"
+            >
+              <span aria-hidden className="h-1 w-10 rounded-full bg-line" />
+              <span className="flex items-center gap-1">
+                {folded ? (
+                  <ChevronUp aria-hidden className="size-3.5" />
+                ) : (
+                  <ChevronDown aria-hidden className="size-3.5" />
+                )}
+                {folded ? "Show the guide" : "Hide the guide to see the circle"}
+              </span>
+            </button>
+          )}
           {/* Wide: only the change card scrolls (fading out at its edge); the step text and button always show in full. */}
-          <div className="grid gap-4 p-4 pb-0 sm:p-5 sm:pb-0 lg:flex lg:min-h-0 lg:flex-col">
+          <div
+            hidden={folded}
+            className="grid gap-4 p-4 pt-1 pb-0 sm:px-5 sm:pb-0 lg:flex lg:min-h-0 lg:flex-col lg:p-5 lg:pb-0"
+          >
             {t.lastChange && (reviewing || (hasChange && wide)) && (
               <div
                 key={t.step.id}
                 className="lg:-mb-4 lg:min-h-0 lg:overflow-y-auto lg:pb-4 lg:[mask-image:linear-gradient(to_bottom,black_calc(100%_-_1rem),transparent)]"
               >
-                <ChangeCard change={t.lastChange} tx={lastTx} />
+                <ChangeCard change={t.lastChange} tx={lastTx} chain={chain} />
               </div>
             )}
             {t.lastChange && hasChange && !wide && !reviewing && (
@@ -270,6 +478,16 @@ export function Tutorial({
           </div>
 
           <div className="sticky bottom-0 grid gap-3 bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5 lg:shrink-0">
+            {folded && (
+              <p className="truncate text-sm text-ink" aria-hidden>
+                <span className="font-semibold text-brand">
+                  {reviewing
+                    ? "What just changed:"
+                    : `Step ${t.stepIndex + 1}:`}
+                </span>{" "}
+                {reviewing ? t.lastChange?.title : step.title}
+              </p>
+            )}
             {busy && (
               <div className="flex items-start gap-3 rounded-xl bg-brand-soft p-3 text-sm text-ink">
                 <LoaderCircle
@@ -281,10 +499,25 @@ export function Tutorial({
                     <p className="font-semibold">
                       Sending from your practice wallet…
                     </p>
+                  ) : phase === "confirming" ? (
+                    <>
+                      <p className="font-semibold">
+                        Sent. Waiting for it to be confirmed…
+                      </p>
+                      {pendingHash && (
+                        <p className="text-ink-2">
+                          Transaction{" "}
+                          <TxHash hash={pendingHash} chain={chain} />
+                        </p>
+                      )}
+                    </>
                   ) : (
                     <>
                       {tx && (
-                        <p className="text-ink-2">Done. Transaction {tx}</p>
+                        <p className="text-ink-2">
+                          Done — confirmed in block {tx.block.toString()}.
+                          Transaction <TxHash hash={tx.hash} chain={chain} />
+                        </p>
                       )}
                       <p className="font-semibold">
                         {step.waitNote ?? "One moment…"}
@@ -326,6 +559,29 @@ export function Tutorial({
               <Button onClick={() => setSeenFor(t.step.id)} className="w-full">
                 Next step
               </Button>
+            ) : step.options && step.options.length > 0 ? (
+              <fieldset
+                className="grid gap-2 border-0 p-0"
+                aria-label={step.title}
+              >
+                {step.options.map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    data-option={o.value}
+                    disabled={busy}
+                    onClick={() => go(false, o.value)}
+                    className="min-w-full rounded-xl border border-line bg-surface px-4 py-3 text-left hover:border-brand disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <span className="block font-semibold text-brand">
+                      {o.label}
+                    </span>
+                    <span className="mt-0.5 block text-sm text-ink-2">
+                      {o.description}
+                    </span>
+                  </button>
+                ))}
+              </fieldset>
             ) : (
               <Button
                 onClick={() => go()}
@@ -333,8 +589,17 @@ export function Tutorial({
                 busy={busy}
                 className="w-full"
               >
-                {busy ? (phase === "sending" ? "Sending…" : "Working…") : label}
+                {busy
+                  ? phase === "sending"
+                    ? "Sending…"
+                    : phase === "confirming"
+                      ? "Confirming…"
+                      : "Working…"
+                  : label}
               </Button>
+            )}
+            {history.length > 0 && !busy && (
+              <HistoryButton items={history} chain={chain} />
             )}
             {!reviewing &&
               step.action &&

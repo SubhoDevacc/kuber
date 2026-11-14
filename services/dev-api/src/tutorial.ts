@@ -50,13 +50,35 @@ type Row = {
   after: string;
   tone: "good" | "bad" | "plain";
 };
-export type Change = { title: string; rows: Row[]; note: string | null };
+export type Change = {
+  title: string;
+  rows: Row[];
+  note: string | null;
+  /** The real transactions the server sent during the step, in order (practice members, admin, settlements). */
+  txs?: { label: string; hash: `0x${string}` }[];
+};
 type Action = {
   label: string;
-  target: "usdc" | "circle";
+  target: "usdc" | "circle" | "factory";
   functionName: string;
-  args: (string | number | boolean | string[])[];
+  // Digit-only strings are uints (also inside objects: createCircle's tuples are objects).
+  args: (string | number | boolean | string[] | Record<string, unknown>)[];
 };
+type Choice = "join" | "create";
+const OPTIONS = [
+  {
+    value: "join",
+    label: "Join a circle",
+    description:
+      "Bob has started a practice circle and invited you. Join it with the other practice members.",
+  },
+  {
+    value: "create",
+    label: "Create a circle",
+    description:
+      "Start the practice circle yourself with one real transaction, then the five practice members join you.",
+  },
+];
 
 export type Tutorial = {
   user: Address;
@@ -70,11 +92,18 @@ export type Tutorial = {
   daveLoan: number;
   proposal: number;
   running: Promise<unknown> | null;
+  /** "join" (Bob's circle, default) or "create" (the user's own circle); null until the first step is done. */
+  path: Choice | null;
+  createArgs: Action["args"] | null;
+  createFrom: bigint;
 };
 
 type Engine = ReturnType<typeof engine>;
 type Step = {
   id: string;
+  /** Only on this path (absent: both). */
+  path?: Choice;
+  options?: typeof OPTIONS;
   chapter: number;
   title: string;
   body: (f: Facts, t: Tutorial) => string;
@@ -139,7 +168,69 @@ const repayAllowance = (f: Facts, t: Tutorial) => {
 
 // ---------- the story
 
+const joinChange = (b: Facts, a: Facts): Change => ({
+  title: "The circle started",
+  rows: [
+    row("Members", String(b.members.length), String(a.members.length), "good"),
+    row("Circle", roundLabel(b), roundLabel(a), "good"),
+    mrow("Saved in the circle", potTotal(b), potTotal(a), "good"),
+  ],
+  note: "The others paid round 1 right away. Yours is collected when the round closes.",
+});
+
 const STEPS: Step[] = [
+  {
+    id: "start",
+    chapter: 1,
+    title: "Join or create a circle",
+    body: () =>
+      "Every circle is started by one person, who invites the others. Join the practice circle Bob started, or create your own and the practice members join you. Either way the story and the numbers are the same.",
+    action: null,
+    options: OPTIONS,
+    waitNote: "Getting your practice circle ready…",
+    change: (_b, _a, t) => ({
+      title:
+        t.path === "create"
+          ? "You will create the circle"
+          : "You will join Bob's circle",
+      rows: [
+        row(
+          "Your practice circle",
+          "Not chosen",
+          t.path === "create" ? "Started by you" : "Started by Bob",
+          "good",
+        ),
+      ],
+      note:
+        t.path === "create"
+          ? "Next you send the transaction that creates the circle on your practice chain."
+          : "Bob, Cara, Dave, Erin and Frank are already in it.",
+    }),
+  },
+  {
+    id: "create",
+    path: "create",
+    chapter: 1,
+    title: "Create your circle",
+    body: (f) =>
+      `Create the practice circle: everyone saves ${money(f.contribution)} (test money) each round for ${f.totalRounds} rounds, and you invite Bob, Cara, Dave, Erin and Frank. This is one real transaction.`,
+    action: (_f, t) => ({
+      label: "Create the circle",
+      target: "factory",
+      functionName: "createCircle",
+      args: t.createArgs ?? [],
+    }),
+    waitNote: "Bob, Cara, Dave, Erin and Frank are joining…",
+    change: (_b, a) => ({
+      title: "Your circle is ready",
+      rows: [
+        row("Your circle", "Not created", "Created", "good"),
+        row("Members", "1", String(a.members.length), "good"),
+        row("Circle", "Not created", roundLabel(a), "plain"),
+      ],
+      note: "You created the circle, so you are already a member. The five practice members joined after your invite.",
+    }),
+  },
   {
     id: "approve",
     chapter: 1,
@@ -173,6 +264,7 @@ const STEPS: Step[] = [
   },
   {
     id: "join",
+    path: "join",
     chapter: 1,
     title: "Join the circle",
     body: () =>
@@ -193,20 +285,23 @@ const STEPS: Step[] = [
       await e.admin(t.circle, "activate", [], BIG_GAS);
       await e.payBots(t, BOT_LETTERS);
     },
-    change: (b, a) => ({
-      title: "The circle started",
-      rows: [
-        row(
-          "Members",
-          String(b.members.length),
-          String(a.members.length),
-          "good",
-        ),
-        row("Circle", roundLabel(b), roundLabel(a), "good"),
-        mrow("Saved in the circle", potTotal(b), potTotal(a), "good"),
-      ],
-      note: "The others paid round 1 right away. Yours is collected when the round closes.",
-    }),
+    change: joinChange,
+  },
+  {
+    id: "begin",
+    path: "create",
+    chapter: 1,
+    title: "Start the circle",
+    body: () =>
+      "Bob, Cara, Dave, Erin and Frank have joined your circle. At its start time the circle starts with 6 people.",
+    action: null,
+    waitNote: "Starting the circle…",
+    run: async (e, t) => {
+      await e.toRound(t, 1);
+      await e.admin(t.circle, "activate", [], BIG_GAS);
+      await e.payBots(t, BOT_LETTERS);
+    },
+    change: joinChange,
   },
   {
     id: "round1",
@@ -753,8 +848,39 @@ export const STEP_IDS = STEPS.map((s) => s.id);
 
 // ---------- chain side
 
+const BOT_LABEL = (
+  t: Tutorial,
+  l: Bot,
+  fn: string,
+  args: readonly unknown[],
+) => {
+  const n = BOTS[l];
+  if (fn === "payNow") return `${n} paid this round's savings`;
+  if (fn === "vouch" || fn === "agree")
+    return Number(args[0]) === t.userLoan
+      ? `${n} backed your loan`
+      : `${n} backed Dave's loan`;
+  if (fn === "requestLoan")
+    return `${n} asked to borrow ${money(args[0] as bigint)}`;
+  if (fn === "claim") return `${n} took the loan`;
+  if (fn === "vote") return `${n} voted ${args[1] ? "yes" : "no"}`;
+  if (fn === "propose") return `${n} proposed a rule change`;
+  if (fn === "withdraw") return `${n} collected the share-out`;
+  if (fn === "join") return `${n} joined`;
+  return `${n}: ${fn}`;
+};
+
 const engine = (c: Chain) => {
   const { abis } = c;
+  /** Transactions of the step being run (next() runs one at a time under the chain lock). */
+  let txs: { label: string; hash: `0x${string}` }[] | null = null;
+  const rec = <R extends { transactionHash: `0x${string}` }>(
+    label: string,
+    r: R,
+  ) => {
+    txs?.push({ label, hash: r.transactionHash });
+    return r;
+  };
   const state = (t: Tutorial) =>
     c.read<{
       status: number;
@@ -762,27 +888,64 @@ const engine = (c: Chain) => {
       settledEpoch: bigint;
       proposalCount: bigint;
     }>(t.circle, abis.circle, "getCircleState");
+  const ADMIN_LABEL: Record<string, string> = {
+    activate: "The circle started",
+    mint: "The circle's investments paid out their earnings",
+  };
   return {
     chain: c,
     state,
-    admin: (
+    begin: () => {
+      txs = [];
+    },
+    end: () => {
+      const out = txs ?? [];
+      txs = null;
+      return out;
+    },
+    admin: async (
       to: Address,
       fn: string,
       args: readonly unknown[] = [],
       gas?: bigint,
       abi: "circle" | "usdc" | "registry" = "circle",
-    ) => c.send(c.admin, to, abis[abi], fn, args, gas),
-    bot: (t: Tutorial, l: Bot, fn: string, args: readonly unknown[] = []) =>
-      c.send(t.bots[l], t.circle, abis.circle, fn, args),
-    botUsdc: (t: Tutorial, l: Bot, fn: string, args: readonly unknown[]) =>
-      c.send(t.bots[l], c.usdc, abis.usdc, fn, args),
+    ) =>
+      rec(
+        ADMIN_LABEL[fn] ?? fn,
+        await c.send(c.admin, to, abis[abi], fn, args, gas),
+      ),
+    bot: async (
+      t: Tutorial,
+      l: Bot,
+      fn: string,
+      args: readonly unknown[] = [],
+    ) =>
+      rec(
+        BOT_LABEL(t, l, fn, args),
+        await c.send(t.bots[l], t.circle, abis.circle, fn, args),
+      ),
+    botUsdc: async (
+      t: Tutorial,
+      l: Bot,
+      fn: string,
+      args: readonly unknown[],
+    ) =>
+      rec(
+        fn === "approve" && args[1] === 0n
+          ? `${BOTS[l]} stopped paying (took back the circle's permission)`
+          : `${BOTS[l]} allowed the circle to collect savings`,
+        await c.send(t.bots[l], c.usdc, abis.usdc, fn, args),
+      ),
     member: (t: Tutorial, l: Bot) =>
       c.read<{ pendingRequestId: number }>(t.circle, abis.circle, "getMember", [
         t.bots[l].address,
       ]),
     payBots: async (t: Tutorial, ls: Bot[]) => {
       for (const l of ls)
-        await c.send(t.bots[l], t.circle, abis.circle, "payNow");
+        rec(
+          BOT_LABEL(t, l, "payNow", []),
+          await c.send(t.bots[l], t.circle, abis.circle, "payNow"),
+        );
     },
     /** Start of round `e` on the circle's own clock (startTime + (e − 1) × epochDuration). */
     toRound: async (t: Tutorial, e: number) => {
@@ -794,17 +957,35 @@ const engine = (c: Chain) => {
       for (let i = 0; i < 10; i++) {
         const s = await state(t);
         if (s.status !== 1 || s.settledEpoch >= s.currentEpoch - 1n) return;
-        await c.send(
-          c.admin,
-          t.circle,
-          abis.circle,
-          "settle",
-          [maxUint256],
-          BIG_GAS,
+        rec(
+          `Round ${s.settledEpoch + 1n} closed and settled`,
+          await c.send(
+            c.admin,
+            t.circle,
+            abis.circle,
+            "settle",
+            [maxUint256],
+            BIG_GAS,
+          ),
         );
       }
     },
   };
+};
+
+// ---------- the S1 circle's parameters (also the "Create a circle" transaction's)
+
+const RULES = {
+  ownLtvBps: 9_000,
+  ownRateBps: 300,
+  perLoanMaxBps: 5_000,
+  fastLaneBps: 3_000,
+  penaltyBps: 1_000,
+  contribFineBps: 100,
+  installFineBps: 300,
+  exitFeeBps: 300,
+  managerFeeBps: 0,
+  alloc: { loan: 4_000, aave: 3_000, lp: 2_000, cash: 1_000 },
 };
 
 // ---------- public API
@@ -818,6 +999,18 @@ export const tutorials = (
 ) => {
   const e = engine(c);
   const { abis } = c;
+  const fixedParams = async () => ({
+    contribution: 100n * USDC,
+    epochDuration: 60,
+    lockBps: 2_000,
+    startTime: (await c.now()) + 60n,
+    minSaveEpochs: 3,
+    totalEpochs: 7,
+    minMembers: 5,
+    maxMembers: 50,
+    maxRepayEpochs: 3,
+    cooldownEpochs: 1,
+  });
   /** Practice circles: lowercase circle -> display names of its members. */
   const practice = new Map<string, Names>();
 
@@ -852,30 +1045,7 @@ export const tutorials = (
         ]))
       )
         throw new Error("bot verification failed");
-    const fixed = {
-      contribution: 100n * USDC,
-      epochDuration: 60,
-      lockBps: 2_000,
-      startTime: (await c.now()) + 60n,
-      minSaveEpochs: 3,
-      totalEpochs: 7,
-      minMembers: 5,
-      maxMembers: 50,
-      maxRepayEpochs: 3,
-      cooldownEpochs: 1,
-    };
-    const rules = {
-      ownLtvBps: 9_000,
-      ownRateBps: 300,
-      perLoanMaxBps: 5_000,
-      fastLaneBps: 3_000,
-      penaltyBps: 1_000,
-      contribFineBps: 100,
-      installFineBps: 300,
-      exitFeeBps: 300,
-      managerFeeBps: 0,
-      alloc: { loan: 4_000, aave: 3_000, lp: 2_000, cash: 1_000 },
-    };
+    const fixed = await fixedParams();
     const invites = [
       u,
       bots.C.address,
@@ -886,7 +1056,7 @@ export const tutorials = (
     const r = await c.send(bots.B, c.factory, abis.factory, "createCircle", [
       `${PRACTICE_PREFIX} (${userName})`,
       fixed,
-      rules,
+      RULES,
       invites,
     ]);
     const [ev] = parseEventLogs({
@@ -921,23 +1091,65 @@ export const tutorials = (
       daveLoan: 0,
       proposal: 0,
       running: null,
+      path: null,
+      createArgs: null,
+      createFrom: 0n,
     };
+  };
+
+  /** "Create a circle": the practice members join the user's own circle and allow their savings. */
+  const adopt = async (t: Tutorial) => {
+    const found = (await c.pub.getContractEvents({
+      address: c.factory,
+      abi: abis.factory,
+      eventName: "CircleCreated",
+      args: { creator: t.user },
+      fromBlock: t.createFrom,
+    } as never)) as unknown as { args: { circle: Address } }[];
+    const circle = found.at(-1)?.args.circle;
+    if (!circle)
+      throw new HttpError(
+        409,
+        "We can't see your new circle yet. Press “Create the circle”, wait until it is confirmed, then continue.",
+      );
+    const old = t.circle;
+    t.circle = circle;
+    for (const l of BOT_LETTERS) await e.bot(t, l, "join");
+    for (const l of BOT_LETTERS)
+      await e.botUsdc(t, l, "approve", [circle, 5_000n * USDC]);
+    // Bob's circle stays behind unused; it is no longer the user's (a copy of the names without the user).
+    const left = new Map(t.names);
+    left.delete(t.user.toLowerCase());
+    practice.set(old.toLowerCase(), left);
+    practice.set(circle.toLowerCase(), t.names);
+  };
+
+  /** Next step index on the user's path. */
+  const onPath = (t: Tutorial, i: number) =>
+    !STEPS[i].path || STEPS[i].path === (t.path ?? "join");
+  const after = (t: Tutorial, i: number) => {
+    let j = i + 1;
+    while (j < STEPS.length - 1 && !onPath(t, j)) j++;
+    return j;
   };
 
   const view = (t: Tutorial, f: Facts) => {
     const s = STEPS[t.stepIndex];
+    const path = STEPS.map((_, i) => i).filter((i) => onPath(t, i));
     return {
       circle: t.circle,
       done: t.stepIndex === STEPS.length - 1,
       chapter: s.chapter,
       chapters: CHAPTERS,
-      stepIndex: t.stepIndex,
-      stepCount: STEPS.length,
+      choice: t.path,
+      stepIndex: path.indexOf(t.stepIndex),
+      stepCount: path.length,
       step: {
         id: s.id,
         title: s.title,
         body: s.body(f, t),
         action: s.action ? s.action(f, t) : null,
+        ...(s.options ? { options: s.options } : {}),
         waitNote: s.waitNote,
       },
       lastChange: t.lastChange,
@@ -946,7 +1158,7 @@ export const tutorials = (
   };
 
   /** Verifies the user's action, runs the server's part, moves on. One run per user at a time; a failure does not advance. */
-  const next = (t: Tutorial, stepId?: string) => {
+  const next = (t: Tutorial, stepId?: string, choice?: Choice) => {
     if (t.running) return t.running as Promise<TutorialState>;
     const run = c.locked(async () => {
       const s = STEPS[t.stepIndex];
@@ -956,11 +1168,36 @@ export const tutorials = (
         return view(t, f);
       const missing = s.check?.(f, t);
       if (missing) throw new HttpError(409, missing);
-      await s.run?.(e, t, f);
+      e.begin();
+      try {
+        if (s.id === "start") {
+          // No choice (an older client) means "join", today's path.
+          t.path = choice ?? "join";
+          if (t.path === "create") {
+            t.createFrom = await c.pub.getBlockNumber({ cacheTime: 0 });
+            const fixed = await fixedParams();
+            t.createArgs = [
+              `${PRACTICE_PREFIX} (${t.names.get(t.user.toLowerCase()) ?? "you"})`,
+              {
+                ...fixed,
+                contribution: fixed.contribution.toString(),
+                startTime: fixed.startTime.toString(),
+              },
+              RULES,
+              BOT_LETTERS.map((l) => t.bots[l].address),
+            ];
+          }
+        }
+        if (s.id === "create") await adopt(t);
+        await s.run?.(e, t, f);
+      } catch (err) {
+        e.end();
+        throw err;
+      }
       const a = await readFacts(t.circle, t.user);
-      t.lastChange = s.change(t.before, a, t);
+      t.lastChange = { ...s.change(t.before, a, t), txs: e.end() };
       t.before = a;
-      t.stepIndex += 1;
+      t.stepIndex = after(t, t.stepIndex);
       return view(t, a);
     });
     t.running = run;
@@ -972,6 +1209,7 @@ export const tutorials = (
   return {
     practice,
     create: (u: Address, name: string) => c.locked(() => create(u, name)),
+    factory: c.factory,
     view: async (t: Tutorial) => view(t, await readFacts(t.circle, t.user)),
     next,
   };

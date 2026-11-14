@@ -51,6 +51,7 @@ export const parseEnv = (raw: NodeJS.ProcessEnv): Env => {
 
 const DeploymentSchema = z.object({
   chainId: z.number(),
+  block: z.number().optional(),
   usdc: address,
   registry: address,
   factory: address,
@@ -59,7 +60,10 @@ const DeploymentSchema = z.object({
 export type Chain = Awaited<ReturnType<typeof connect>>;
 
 /** Connects, checks the deployment matches the chain, freezes Anvil time, and returns the helpers. */
-export const connect = async (env: Env) => {
+export const connect = async (
+  env: Pick<Env, "RPC_URL" | "ADMIN_PRIVATE_KEY" | "DEPLOYMENT_PATH">,
+  opts: { freezeTime?: boolean; pollingInterval?: number } = {},
+) => {
   const path =
     env.DEPLOYMENT_PATH ??
     new URL("../../../deployments/local.json", import.meta.url).pathname;
@@ -82,7 +86,11 @@ export const connect = async (env: Env) => {
     rpcUrls: { default: { http: [env.RPC_URL] } },
   });
   const transport = http(env.RPC_URL, { batch: true });
-  const pub = createPublicClient({ chain, transport, pollingInterval: 50 });
+  const pub = createPublicClient({
+    chain,
+    transport,
+    pollingInterval: opts.pollingInterval ?? 50,
+  });
   const test = createTestClient({ chain, transport, mode: "anvil" });
   const admin = privateKeyToAccount(key as `0x${string}`);
   const usdc = dep.usdc as Address;
@@ -90,7 +98,9 @@ export const connect = async (env: Env) => {
   const factory = dep.factory as Address;
 
   // R-T: chain time moves only when the server moves it, so a slow user never misses a window.
-  if (chainId === 31337) await test.setBlockTimestampInterval({ interval: 0 });
+  // The real-app server (fuji.ts) runs on real time and passes freezeTime: false.
+  if (chainId === 31337 && opts.freezeTime !== false)
+    await test.setBlockTimestampInterval({ interval: 0 });
 
   // One chain writer at a time: no nonce races, and a double click cannot interleave with itself.
   let tail: Promise<unknown> = Promise.resolve();
@@ -145,6 +155,9 @@ export const connect = async (env: Env) => {
 
   return {
     chainId,
+    chain,
+    transport,
+    deployBlock: BigInt(dep.block ?? 0),
     pub,
     admin,
     usdc,

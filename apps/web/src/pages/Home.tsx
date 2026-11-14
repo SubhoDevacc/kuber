@@ -16,9 +16,11 @@ import type { CircleSnapshot, CircleSummary, Me } from "../types";
 function AppHeader({
   onTutorial,
   onRestart,
+  onSignIn,
 }: {
   onTutorial: () => void;
   onRestart: () => void;
+  onSignIn?: () => void;
 }) {
   const item =
     "flex min-h-11 cursor-pointer items-center rounded-lg px-3 text-base text-ink outline-none data-[highlighted]:bg-brand-soft";
@@ -40,7 +42,7 @@ function AppHeader({
             <DropdownMenu.Content
               align="end"
               sideOffset={6}
-              className="z-50 min-w-56 rounded-xl border border-line bg-surface p-1.5 shadow-[0_10px_30px_rgba(16,48,42,0.16)]"
+              className="z-50 min-w-56 rounded-xl border border-line bg-surface p-1.5 shadow-[0_10px_30px_var(--color-shadow)]"
             >
               <DropdownMenu.Item className={item} onSelect={onTutorial}>
                 Tutorial mode
@@ -48,6 +50,11 @@ function AppHeader({
               <DropdownMenu.Item className={item} onSelect={onRestart}>
                 Restart tutorial
               </DropdownMenu.Item>
+              {onSignIn && (
+                <DropdownMenu.Item className={item} onSelect={onSignIn}>
+                  Sign in to the real app
+                </DropdownMenu.Item>
+              )}
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
@@ -71,11 +78,13 @@ export function Home({
   onOpen,
   onTutorial,
   onRestart,
+  onSignIn,
   busyNote,
 }: {
   onOpen: (address: string) => void;
   onTutorial: () => void;
   onRestart: () => void;
+  onSignIn?: () => void;
   busyNote: string | null;
 }) {
   const [circles, setCircles] = useState<CircleSummary[] | null>(null);
@@ -96,7 +105,11 @@ export function Home({
 
   return (
     <div className="min-h-dvh">
-      <AppHeader onTutorial={onTutorial} onRestart={onRestart} />
+      <AppHeader
+        onTutorial={onTutorial}
+        onRestart={onRestart}
+        onSignIn={onSignIn}
+      />
       <main className="mx-auto max-w-4xl px-4 py-6">
         {busyNote && (
           <p
