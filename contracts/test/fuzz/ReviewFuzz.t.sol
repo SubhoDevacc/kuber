@@ -58,23 +58,43 @@ contract ReviewFuzzTest is BackingTestBase {
         return address(new ReviewHarness());
     }
 
+    /// forge-config: default.fuzz.runs = 256
+    /// forge-config: full.fuzz.runs = 10000
+    /// forge-config: coverage.fuzz.runs = 64
+    /// 256 runs in the default profile (37 ms per run, forge test -j 1); the full profile still runs 10,000 (inline settings for default carry over to the other profiles).
     function testFuzz_review_fines(uint256 seed) public {
         _run(seed, 9_000, 300, 1_000);
     }
 
+    /// forge-config: default.fuzz.runs = 256
+    /// forge-config: full.fuzz.runs = 10000
+    /// forge-config: coverage.fuzz.runs = 64
+    /// 256 runs in the default profile (37 ms per run, forge test -j 1); the full profile still runs 10,000 (inline settings for default carry over to the other profiles).
     function testFuzz_review_finesFullLtv(uint256 seed) public {
         _run(seed, 10_000, 2_000, 5_000);
     }
 
+    /// forge-config: default.fuzz.runs = 256
+    /// forge-config: full.fuzz.runs = 10000
+    /// forge-config: coverage.fuzz.runs = 64
+    /// 256 runs in the default profile (37 ms per run, forge test -j 1); the full profile still runs 10,000 (inline settings for default carry over to the other profiles).
     function testFuzz_review_zeroFines(uint256 seed) public {
         _run(seed, 9_000, 0, 1_000);
     }
 
+    /// forge-config: default.fuzz.runs = 256
+    /// forge-config: full.fuzz.runs = 10000
+    /// forge-config: coverage.fuzz.runs = 64
+    /// 256 runs in the default profile (37 ms per run, forge test -j 1); the full profile still runs 10,000 (inline settings for default carry over to the other profiles).
     function testFuzz_review_zeroFinesZeroPenalty(uint256 seed) public {
         _run(seed, 9_000, 0, 0);
     }
 
     /// CR-01's shape: fines 0 and three in four members start late, so qualifying rounds are often dated late.
+    /// forge-config: default.fuzz.runs = 256
+    /// forge-config: full.fuzz.runs = 10000
+    /// forge-config: coverage.fuzz.runs = 64
+    /// 256 runs in the default profile (37 ms per run, forge test -j 1); the full profile still runs 10,000 (inline settings for default carry over to the other profiles).
     function testFuzz_review_zeroFinesLateSavers(uint256 seed) public {
         lateOf4 = 3;
         _run(seed, 9_000, 0, 1_000);

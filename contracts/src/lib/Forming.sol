@@ -56,7 +56,7 @@ library Forming {
 
     function invite(CircleStorage.Layout storage $, address who) external {
         if (msg.sender != $.creator) revert IKuberCircleErrors.NotCreator();
-        if ($.status != CircleStatus.Forming) revert IKuberCircleErrors.NotForming();
+        _open($);
         if (who == address(0)) revert IKuberCircleErrors.InvalidInvite();
         if ($.registry.hasOpenDebt(who)) revert IKuberCircleErrors.HasOpenDebt();
         $.invited[who] = true;
@@ -64,7 +64,7 @@ library Forming {
     }
 
     function requestToJoin(CircleStorage.Layout storage $) external {
-        if ($.status != CircleStatus.Forming) revert IKuberCircleErrors.NotForming();
+        _open($);
         if (!$.registry.verified(msg.sender)) revert IKuberCircleErrors.NotVerified();
         if ($.registry.hasOpenDebt(msg.sender)) revert IKuberCircleErrors.HasOpenDebt();
         if ($.members[msg.sender].status != MemberStatus.None) revert IKuberCircleErrors.AlreadyMember();
@@ -73,7 +73,7 @@ library Forming {
     }
 
     function join(CircleStorage.Layout storage $) external {
-        if ($.status != CircleStatus.Forming) revert IKuberCircleErrors.NotForming();
+        _open($);
         if (!$.invited[msg.sender]) revert IKuberCircleErrors.NotInvited();
         if ($.members[msg.sender].status != MemberStatus.None) revert IKuberCircleErrors.AlreadyMember();
         if (!$.registry.verified(msg.sender)) revert IKuberCircleErrors.NotVerified();
@@ -84,7 +84,7 @@ library Forming {
 
     /// @notice A non-creator member leaves while Forming; `invited` stays, so they may join again.
     function leave(CircleStorage.Layout storage $) external {
-        if ($.status != CircleStatus.Forming) revert IKuberCircleErrors.NotForming();
+        _open($);
         if ($.members[msg.sender].status != MemberStatus.Active) revert IKuberCircleErrors.NotMember();
         if (msg.sender == $.creator) revert IKuberCircleErrors.CreatorCannotLeave();
         address[] storage list = $.memberList;
@@ -103,7 +103,7 @@ library Forming {
 
     function cancel(CircleStorage.Layout storage $) external {
         if (msg.sender != $.creator) revert IKuberCircleErrors.NotCreator();
-        if ($.status != CircleStatus.Forming) revert IKuberCircleErrors.NotForming();
+        _open($);
         _cancel($);
     }
 
@@ -117,6 +117,12 @@ library Forming {
         } else {
             _cancel($);
         }
+    }
+
+    // D-08: after startTime only activate decides Active or Cancelled, so no join, leave, or cancel can race it.
+    function _open(CircleStorage.Layout storage $) private view {
+        if ($.status != CircleStatus.Forming) revert IKuberCircleErrors.NotForming();
+        if (block.timestamp >= $.fixedParams.startTime) revert IKuberCircleErrors.FormingClosed();
     }
 
     function _addMember(CircleStorage.Layout storage $, address who) private {

@@ -104,6 +104,13 @@ library Waterfall {
         _freed($, member, m.savings - m.pledgedOut, clock, false);
     }
 
+    /// @notice What applyFreeSavings would apply now (the same amount `_freed` uses); 0 where it reverts.
+    function freedApplicable(CircleStorage.Layout storage $, address member) external view returns (uint256) {
+        Member storage m = $.members[member];
+        if ($.status != CircleStatus.Active || m.status != MemberStatus.Suspended) return 0;
+        return _freedDue($, member, m.savings - m.pledgedOut);
+    }
+
     /// @notice What `person` still owes this circle for their latest defaulted loan.
     function debtOf(CircleStorage.Layout storage $, address person) internal view returns (uint256) {
         uint256 id = $.members[person].debtLoanId;
@@ -178,12 +185,17 @@ library Waterfall {
     function _freed(CircleStorage.Layout storage $, address member, uint256 freed, uint256 e, bool inSettlement)
         private
     {
-        Loan storage loan = $.loans[$.members[member].debtLoanId];
-        uint256 x = Math.min(freed, _losses(loan.agreers) + _losses(loan.vouchers) + loan.penaltyOwed);
+        uint256 x = _freedDue($, member, freed);
         if (x == 0) return;
         Weights.debitSuspended($, member, x);
         // Releases happen only while Active (before finalize), so nothing goes to the treasury here.
         _apply($, member, x, e, inSettlement ? e + 1 : e, false);
+    }
+
+    // R-N3: the agreer and voucher losses plus penalty still owed (never fines), capped at `freed`.
+    function _freedDue(CircleStorage.Layout storage $, address member, uint256 freed) private view returns (uint256) {
+        Loan storage loan = $.loans[$.members[member].debtLoanId];
+        return Math.min(freed, _losses(loan.agreers) + _losses(loan.vouchers) + loan.penaltyOwed);
     }
 
     // D-13, R-N2: x <= debt, applied to agreers' losses, vouchers' losses, fines (if withFines), then penalty. Active

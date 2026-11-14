@@ -29,15 +29,27 @@ contract DefaultFuzzTest is BackingTestBase {
     // Coverage: suspensions, voucher seizures, agreer seizures, multi-backer tiers seized, R-N3 DebtRepaid in settle.
     uint256[5] private cov;
 
+    /// forge-config: default.fuzz.runs = 256
+    /// forge-config: full.fuzz.runs = 10000
+    /// forge-config: coverage.fuzz.runs = 64
+    /// 256 runs in the default profile (30 ms per run, forge test -j 1); the full profile still runs 10,000 (inline settings for default carry over to the other profiles).
     function testFuzz_D22_seizureInvariants(uint256 seed) public {
         _run(seed, 9_000, 300, 1_000);
     }
 
+    /// forge-config: default.fuzz.runs = 256
+    /// forge-config: full.fuzz.runs = 10000
+    /// forge-config: coverage.fuzz.runs = 64
+    /// 256 runs in the default profile (28 ms per run, forge test -j 1); the full profile still runs 10,000 (inline settings for default carry over to the other profiles).
     function testFuzz_D22_ownLtvFull(uint256 seed) public {
         _run(seed, 10_000, 300, 1_000);
     }
 
     /// @dev Debt-0 defaults: the borrower stays Active and loses savings at effective epoch k.
+    /// forge-config: default.fuzz.runs = 256
+    /// forge-config: full.fuzz.runs = 10000
+    /// forge-config: coverage.fuzz.runs = 64
+    /// 256 runs in the default profile (28 ms per run, forge test -j 1); the full profile still runs 10,000 (inline settings for default carry over to the other profiles).
     function testFuzz_D22_zeroFinesAndPenalty(uint256 seed) public {
         _run(seed, 9_000, 0, 0);
     }

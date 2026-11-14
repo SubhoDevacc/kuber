@@ -267,6 +267,10 @@ library CircleStorage {
         mapping(address => uint8) lastProposedEpoch;
         // R-J2: the epoch in which no Kick on this member may be proposed, the round after a failed Kick (06-02).
         mapping(address => uint8) kickBlockedEpoch;
+        // 07 D-05: gas reimbursed so far for the epoch being settled, zeroed when that settlement completes.
+        uint256 epochReimbursed;
+        // Protocol + manager fees credited so far (PAGES P5b).
+        uint256 feesCharged;
     }
 }
 
@@ -279,6 +283,7 @@ interface IKuberCircleErrors {
     error ZeroAddress();
     error NotCreator();
     error NotForming();
+    error FormingClosed();
     error NotInvited();
     error AlreadyMember();
     error CircleFull();
@@ -414,6 +419,7 @@ interface IKuberCircleEvents {
     event Sponsored(address indexed sponsor, address indexed applicant, uint256 proposalId);
     event MemberAdmitted(address indexed member);
     event GasReimbursed(address indexed caller, uint256 amount);
+    event FeesCharged(uint256 protocolFee, uint256 managerFee);
     event Finalized(int256 yieldPot, uint256 wActive, uint256 wSaver, uint256 saverPot, uint256 sTotal);
     event Withdrawn(address indexed member, uint256 amount);
     event Claimed(address indexed member, uint256 amount);

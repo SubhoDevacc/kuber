@@ -17,7 +17,8 @@ import {
 /// @notice SPEC §2.5 bounds; takes candidate structs so M6 governance can reuse validateRules on a proposal.
 library Params {
     function validateFixed(FixedParams memory f) internal view {
-        if (f.contribution == 0) revert IKuberCircleErrors.InvalidContribution();
+        // contribution × MAX_EPOCHS × MAX_MEMBERS must fit uint128 (02-VERIFICATION I-1).
+        if (f.contribution == 0 || f.contribution > 1e30) revert IKuberCircleErrors.InvalidContribution();
         if (f.epochDuration < MIN_EPOCH_DURATION) revert IKuberCircleErrors.InvalidEpochDuration();
         if (f.lockBps < 1_000 || f.lockBps > 4_000) revert IKuberCircleErrors.InvalidLockBps();
         if (f.startTime <= block.timestamp) revert IKuberCircleErrors.InvalidStartTime();

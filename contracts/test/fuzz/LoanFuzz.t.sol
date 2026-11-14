@@ -46,6 +46,10 @@ contract LoanFuzzTest is LoanTestBase {
         uint256 k;
     }
 
+    /// forge-config: default.fuzz.runs = 256
+    /// forge-config: full.fuzz.runs = 10000
+    /// forge-config: coverage.fuzz.runs = 64
+    /// 256 runs in the default profile (40 ms per run, forge test -j 1); the full profile still runs 10,000 (inline settings for default carry over to the other profiles).
     function testFuzz_D19_queueAndRepayInvariants(uint256 seed) public {
         S memory s;
         s.seed = seed;

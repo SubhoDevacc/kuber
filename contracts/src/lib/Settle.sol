@@ -15,6 +15,7 @@ import {
 } from "./CircleTypes.sol";
 import {Governance} from "./Governance.sol";
 import {Invest} from "./Invest.sol";
+import {KuberRegistry} from "../KuberRegistry.sol";
 import {Loans} from "./Loans.sol";
 import {Membership} from "./Membership.sol";
 import {Queue} from "./Queue.sol";
@@ -27,23 +28,50 @@ library Settle {
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
 
+    /// @notice Gas a reimbursed call spends outside the measured span (07 D-05): the 21,000 intrinsic gas, calldata,
+    /// the KuberCircle.settle dispatch and nonReentrant guard, the cold DELEGATECALL into this library (2,600), and
+    /// the reimbursement step after its gasleft() read (registry reads and the storage writes).
+    uint256 internal constant OVERHEAD = 30_000;
+    /// @notice A call that does not complete the settlement is reimbursed only from this many list entries.
+    uint256 internal constant MIN_REIMBURSED_BATCH = 10;
+
     /// @notice Collects at most `maxMembers` members of the next unsettled epoch; finishes it when the cursor
-    /// reaches the end. `clock` is the circle's current epoch.
+    /// reaches the end. `clock` is the circle's current epoch. D-06 order: apply, fund, rebalance, reimburse, then
+    /// finalize, so the finalizing call's reimbursement is a liability before the yield pot and its own gas is not
+    /// reimbursed.
     function run(CircleStorage.Layout storage $, uint256 maxMembers, uint256 clock) external {
+        uint256 g0 = gasleft();
+        (uint256 k, uint256 processed, bool done) = _advance($, maxMembers, clock);
+        if (done || processed >= MIN_REIMBURSED_BATCH) _reimburse($, g0);
+        if (!done) return;
+        $.epochReimbursed = 0;
+        $.settledEpoch = k.toUint8();
+        emit IKuberCircleEvents.EpochSettled(k);
+        // D-16: the last settlement finalizes; status Ended then blocks any further run (NotActive).
+        if (k == $.fixedParams.totalEpochs) ShareOut.finalize($);
+    }
+
+    // Steps 1-4 for epoch k: the collect batch, then (once the cursor wraps) apply, fund, and rebalance. `processed`
+    // counts the list entries walked, skipped non-Active ones included (they cost real gas; the cap bounds the total).
+    function _advance(CircleStorage.Layout storage $, uint256 maxMembers, uint256 clock)
+        private
+        returns (uint256 k, uint256 processed, bool done)
+    {
         if ($.status != CircleStatus.Active) revert IKuberCircleErrors.NotActive();
         if (maxMembers == 0) revert IKuberCircleErrors.ZeroBatch();
-        uint256 k = uint256($.settledEpoch) + 1;
+        k = uint256($.settledEpoch) + 1;
         if (clock <= k) revert IKuberCircleErrors.EpochNotEnded();
         uint256 n = $.memberList.length;
         uint256 i = $.cursor;
         // `cursor + maxMembers` would overflow for maxMembers = type(uint256).max.
         uint256 end = maxMembers >= n - i ? n : i + maxMembers;
+        processed = end - i;
         for (; i < end; ++i) {
             _collect($, $.memberList[i], k);
         }
         if (end < n) {
             $.cursor = end.toUint16();
-            return;
+            return (k, processed, false);
         }
         $.cursor = 0;
         // R-K: the period since the previous rebalance belongs to the manager in place before this apply step.
@@ -66,11 +94,7 @@ library Settle {
             pulled = $.vaultPulledSinceRebalance;
         }
         if (mgr != address(0)) Governance.recordManager($, mgr, base, vaultNow + pulled);
-        _reimburse($);
-        $.settledEpoch = k.toUint8();
-        emit IKuberCircleEvents.EpochSettled(k);
-        // D-16: the last settlement finalizes; status Ended then blocks any further run (NotActive).
-        if (k == $.fixedParams.totalEpochs) ShareOut.finalize($);
+        done = true;
     }
 
     // D-17, D-13: pull the contribution for k unless pre-paid, then the installments due by k, from one
@@ -106,7 +130,32 @@ library Settle {
         if (pull != 0) token.safeTransferFrom(member, address(this), pull);
     }
 
-    // M7 fills this: reimburse the caller's gas.
-    // solhint-disable-next-line no-empty-blocks
-    function _reimburse(CircleStorage.Layout storage) private pure {}
+    /// @notice 07 D-05: (gasUsed + OVERHEAD) × min(tx.gasprice, gasPriceCap) × avaxPriceUsd6 / 1e18, capped at
+    /// maxReimbursePerEpoch per epoch, credited to the caller's claimable (pull) and added to expenses. Units: gas ×
+    /// wei/gas = wei of AVAX; × USD6 per AVAX / 1e18 = token units (6 decimals). Overflow bound: 8e6 gas × 1e15 ×
+    /// 1e12 < 2^256 (registry bounds). No transfer, so a reverting caller or empty cash cannot block settle; the
+    /// claimable liability is what lowers V (V never reads expenses).
+    /// What a caller can farm: a call under 10 entries that does not complete gets 0; splitting a settlement into
+    /// 10-entry calls earns one OVERHEAD per call, which only approximates real unmeasured gas; a completing call
+    /// always does real work (apply, fund, rebalance); the per-epoch cap bounds everything, including a block producer
+    /// paid at a gas price it pays to itself and SSTORE refunds that gasUsed does not net out. A reimbursed call is
+    /// paid for less than the gas it spends (a 50-member settle(10): 85% for the first call of epoch 1, 90-92% for
+    /// later ones; test/unit/GasReimburse.t.sol), because the intrinsic gas, the dispatch before g0, the cold
+    /// registry reads, and the writes here exceed OVERHEAD: the safe direction.
+    function _reimburse(CircleStorage.Layout storage $, uint256 g0) private {
+        uint256 used = g0 - gasleft();
+        // Trusted registry fixed at init; the three reads cannot revert.
+        KuberRegistry reg = $.registry;
+        uint256 cap = reg.maxReimbursePerEpoch();
+        uint256 paid = $.epochReimbursed;
+        // Covers cap 0 and a cap lowered below what this epoch already paid.
+        if (cap <= paid) return;
+        uint256 amt = (used + OVERHEAD) * Math.min(tx.gasprice, reg.gasPriceCap()) * reg.avaxPriceUsd6() / 1e18;
+        amt = Math.min(amt, cap - paid);
+        if (amt == 0) return;
+        $.epochReimbursed = paid + amt;
+        $.expenses += amt;
+        Weights.creditClaimable($, msg.sender, amt);
+        emit IKuberCircleEvents.GasReimbursed(msg.sender, amt);
+    }
 }

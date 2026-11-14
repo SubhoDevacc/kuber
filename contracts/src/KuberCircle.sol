@@ -52,6 +52,8 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         FixedParams fixedParams;
         RuleParams rules;
         address manager;
+        uint256 loanCount;
+        uint256 proposalCount;
     }
 
     struct PublicSummary {
@@ -62,6 +64,7 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         uint256 totalRewardsOwed;
         uint256 outstandingPrincipal;
         uint256 expenses;
+        uint256 feesCharged;
         uint256 wActive;
         uint256 wSaver;
         int256 yieldPot;
@@ -251,9 +254,14 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         return Membership.sponsor($, applicant, currentEpoch());
     }
 
-    /// @notice What the member would be paid on leaving at the next settlement with today's numbers, and the fee
-    /// (D-10); zeros for a non-Active member.
-    function exitValueOf(address member) external view returns (uint256 payout, uint256 fee) {
+    /// @notice What the member would be paid on leaving at the next settlement with today's numbers, the exit fee
+    /// (D-10), and the protocol and manager fee already taken from their yield share (07 D-09); zeros for a
+    /// non-Active member.
+    function exitValueOf(address member)
+        external
+        view
+        returns (uint256 payout, uint256 fee, uint256 protocolFee, uint256 managerFee)
+    {
         return Membership.exitValueOf($, member);
     }
 
@@ -340,6 +348,8 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         s.fixedParams = $.fixedParams;
         s.rules = $.rules;
         s.manager = $.manager;
+        s.loanCount = $.loanCount;
+        s.proposalCount = $.proposalCount;
     }
 
     /// @notice Live totals while running (weights through `settledEpoch`, yieldPot = V - S_total, R-R); the frozen
@@ -351,6 +361,7 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         p.totalRewardsOwed = $.totalRewardsOwed;
         p.outstandingPrincipal = $.outstandingPrincipal;
         p.expenses = $.expenses;
+        p.feesCharged = $.feesCharged;
         if ($.status != CircleStatus.Ended) {
             uint256 e = $.settledEpoch;
             p.sTotal = $.sTotal;
@@ -396,6 +407,22 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
         return $.openIds;
     }
 
+    /// @notice A voter's ballot on a proposal: 0 none, 1 yes, 2 no.
+    function ballotOf(uint256 id, address voter) external view returns (uint8) {
+        return $.ballots[id][voter];
+    }
+
+    /// @notice The idle loan reserve and the per-loan cap at today's V (D-05), and the most `member` could take from
+    /// their own free savings at today's ownLtvBps (the Queue.request formula; not an eligibility check).
+    function loanLimits(address member) external view returns (uint256 capacity, uint256 perLoanMax, uint256 ownLimit) {
+        // Only V is needed here.
+        // slither-disable-next-line unused-return
+        (int256 v,,,) = Invest.valuation($);
+        (capacity, perLoanMax) = Invest.loanCapacity($, v);
+        Member storage m = $.members[member];
+        ownLimit = uint256(m.savings - m.pledgedOut) * $.rules.ownLtvBps / BPS;
+    }
+
     /// @notice Pay class (R-F): repays up to `amt` of the caller's debt here in the D-13 order; at 0 the member is
     /// reinstated while the circle is Active (D-14).
     function repayDebt(uint256 amt) external nonReentrant {
@@ -408,6 +435,11 @@ contract KuberCircle is Initializable, ReentrancyGuardTransient, IKuberCircleErr
     /// to their backers' losses, then penalty. Moves only that member's savings.
     function applyFreed(address member) external nonReentrant {
         Waterfall.applyFreeSavings($, member, currentEpoch());
+    }
+
+    /// @notice What `applyFreed(member)` would apply now; 0 when it would revert or do nothing.
+    function freedApplicable(address member) external view returns (uint256) {
+        return Waterfall.freedApplicable($, member);
     }
 
     /// @notice Pay class (R-F, D-16): a registry-listed circle pays `person`'s debt here out of a payout (the lien);

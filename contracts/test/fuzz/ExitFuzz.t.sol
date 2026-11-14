@@ -35,7 +35,7 @@ contract ExitFuzzTest is GovTestBase {
         KuberCircle.PublicSummary memory p0 = c.getPublicSummary();
         vm.prank(a);
         c.requestLeave();
-        (uint256 payL, uint256 feeL) = c.exitValueOf(a);
+        (uint256 payL, uint256 feeL,,) = c.exitValueOf(a);
         _settleAt(c, 6);
         assertEq(c.getMember(a).claimable, before.claimable + payL, "leave credit == exitValueOf");
         _checkLedger(6);
@@ -75,7 +75,7 @@ contract ExitFuzzTest is GovTestBase {
         assertTrue(c.getMember(ms[0]).everBorrowed);
         vm.prank(ms[0]);
         c.requestLeave();
-        (uint256 pay, uint256 fee) = c.exitValueOf(ms[0]);
+        (uint256 pay, uint256 fee,,) = c.exitValueOf(ms[0]);
         assertEq(pay, 591_861_666);
         assertEq(fee, 18_305_000);
         _settleAt(c, 7);

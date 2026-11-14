@@ -33,6 +33,8 @@ abstract contract CircleTestBase is Test {
         registry = new KuberRegistry(address(this), makeAddr("treasury"));
         factory = new KuberFactory(registry, IERC20(address(usdc)), address(aave), address(lp), _implementation());
         registry.setFactory(address(factory));
+        // 07: fees are opt-in per test; SPEC §4 (S1) and every M2-M6 figure assume protocol fee 0.
+        registry.setProtocolFeeBps(0);
     }
 
     /// @dev Dead shares, so no third party can inflate a near-empty vault's share price; M8's deploy script does

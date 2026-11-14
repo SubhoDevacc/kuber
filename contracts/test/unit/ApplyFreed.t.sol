@@ -85,9 +85,11 @@ contract ApplyFreedTest is BackingTestBase {
         uint256 bal = usdc.balanceOf(address(c));
         uint256 p0Savings = c.getMember(p[0]).savings;
         vm.expectEmit(address(c));
+        assertEq(c.freedApplicable(s), 50e6, "view == what applyFreed applies");
         emit IKuberCircleEvents.DebtRepaid(s, 50e6, 30e6);
         vm.prank(anyone);
         c.applyFreed(s);
+        assertEq(c.freedApplicable(s), 0, "nothing left to apply");
         assertEq(c.getMember(s).savings, 0, "S's free 50e6 applied");
         assertEq(uint256(c.getMember(s).status), uint256(MemberStatus.Suspended), "penalty still owed");
         assertEq(c.getMember(p[2]).savings - p2Savings, 50e6, "p2 repaid into savings");
@@ -109,7 +111,8 @@ contract ApplyFreedTest is BackingTestBase {
         assertEq(logs.length, 0, "no-op");
         assertEq(c.debtOf(s), 30e6);
         assertEq(c.getMember(p[2]).savings - p2Savings, 50e6);
-        // Not on an Active member, nor on a non-member.
+        // Not on an Active member, nor on a non-member (the view shows 0 where the call reverts).
+        assertEq(c.freedApplicable(p[2]) + c.freedApplicable(anyone), 0);
         vm.expectRevert(IKuberCircleErrors.NoDebt.selector);
         c.applyFreed(p[2]);
         vm.expectRevert(IKuberCircleErrors.NoDebt.selector);
@@ -127,10 +130,12 @@ contract ApplyFreedTest is BackingTestBase {
         assertEq(c.getLoan(2).vouchers[0].loss, 20e6);
         uint256 p2Savings = c.getMember(p[2]).savings;
         uint256 pot = c.getPublicSummary().saverPot;
+        assertEq(c.freedApplicable(s), 42e6, "losses 20e6 + penalty 22e6, below the 100e6 free");
         vm.prank(anyone);
         c.applyFreed(s);
         Member memory m = c.getMember(s);
         assertEq(m.savings, 58e6, "100e6 - 20e6 - 22e6");
+        assertEq(c.freedApplicable(s), 0, "reinstated: not Suspended");
         assertEq(uint256(m.status), uint256(MemberStatus.Active), "reinstated at debt 0");
         assertEq(m.reinstatedEpoch, 10, "from the clock epoch");
         assertEq(c.debtOf(s), 0);

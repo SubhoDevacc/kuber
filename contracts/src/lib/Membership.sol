@@ -15,6 +15,7 @@ import {
     ProposalKind,
     ProposalStatus
 } from "./CircleTypes.sol";
+import {Fees} from "./Fees.sol";
 import {Governance} from "./Governance.sol";
 import {Invest} from "./Invest.sol";
 import {KuberRegistry} from "../KuberRegistry.sol";
@@ -132,15 +133,18 @@ library Membership {
     }
 
     /// @notice D-10: what the member would be paid if they left at the next settlement with today's numbers, and
-    /// the exit fee (their locked fee if a leave is pending). Zeros for a non-Active member.
+    /// the exit fee (their locked fee if a leave is pending), and the protocol and manager fee taken from their gross
+    /// yield share. Zeros for a non-Active member.
     function exitValueOf(CircleStorage.Layout storage $, address member)
         external
         view
-        returns (uint256 payout, uint256 fee)
+        returns (uint256 payout, uint256 fee, uint256 protocolFee, uint256 managerFee)
     {
         Member storage m = $.members[member];
-        if (m.status != MemberStatus.Active) return (0, 0);
-        (uint256 value,) = _quote($, member, uint256($.settledEpoch) + 1, 0);
+        if (m.status != MemberStatus.Active) return (0, 0, 0, 0);
+        // The quoted value is already net of the protocol and manager fee on a positive yield share (07 D-03).
+        (uint256 value,, uint256 gain) = _quote($, member, uint256($.settledEpoch) + 1, 0);
+        (protocolFee, managerFee) = Fees.quote($, gain);
         fee = Math.mulDiv(value, m.leavePending ? m.leaveExitFeeBps : $.rules.exitFeeBps, BPS, Math.Rounding.Ceil);
         payout = value - fee;
     }
@@ -186,7 +190,12 @@ library Membership {
 
     // D-09: the exit at settle(k); returns the fee, which applyStep adds to the savers' pot after every exit (R-J3).
     // The quote reads the weights before removeFromActive moves them, both at syncEpoch, so W_active and W_saver
-    // stay equal to the sums over the remaining members.
+    // stay equal to the sums over the remaining members. The protocol and manager fee on a positive yield share are
+    // credited here, per leaver (07 D-03): payout and fees are both claimable liabilities, so the whole gross share
+    // leaves V − sTotal and the next leaver's share is unchanged up to rounding (order-independent, R-J3), and
+    // finalize never charges the same yield again. The manager in place after this settlement's tally receives them
+    // (a manager paused in the collect pass was already cleared by Waterfall.suspend; a leaving manager is cleared
+    // below, after its own exit's manager fee).
     function _exit(
         CircleStorage.Layout storage $,
         address a,
@@ -195,7 +204,11 @@ library Membership {
         MemberStatus st,
         uint256 pendingFees
     ) private returns (uint256 fee) {
-        (uint256 value, uint256 saverShare) = _quote($, a, k, pendingFees);
+        (uint256 value, uint256 saverShare, uint256 gain) = _quote($, a, k, pendingFees);
+        {
+            (uint256 protocolFee, uint256 managerFee) = Fees.quote($, gain);
+            Fees.credit($, protocolFee, managerFee);
+        }
         fee = Math.mulDiv(value, feeBps, BPS, Math.Rounding.Ceil);
         uint256 payout = value - fee;
         Member storage m = $.members[a];
@@ -224,12 +237,13 @@ library Membership {
         }
     }
 
-    // D-09 exit value at settlement k (before the fee), and the saver share inside it. `pendingFees` are this
+    // D-09 exit value at settlement k (before the exit fee, net of the protocol and manager fee), the saver share
+    // inside it, and the gross positive yield share `gain` those fees are taken from. `pendingFees` are this
     // settlement's exit fees not yet in the savers' pot (R-J3).
     function _quote(CircleStorage.Layout storage $, address a, uint256 k, uint256 pendingFees)
         private
         view
-        returns (uint256 value, uint256 saverShare)
+        returns (uint256 value, uint256 saverShare, uint256 gain)
     {
         Member storage m = $.members[a];
         uint256 e = Weights.syncEpoch($, m, k);
@@ -240,7 +254,7 @@ library Membership {
         // R-J3: earlier exits' fees in this settlement are cash, not yet a liability, so a later leaver must not take
         // them as yield.
         v -= pendingFees.toInt256();
-        value = _savingsPart($, m.savings, w, e, v - $.sTotal.toInt256());
+        (value, gain) = _savingsPart($, m.savings, w, e, v);
         // R-J3: with V <= 0 the savers' bonus absorbs the loss first (as in R-U), so the leaver takes no saver share.
         if (!m.everBorrowed && v > 0) {
             uint256 wS = Weights.accrued($.wSaver, $.sSaver, $.wSaverLast, e);
@@ -249,28 +263,24 @@ library Membership {
         value += saverShare + m.rewards;
     }
 
-    // Savings plus the yield share: a gain by weight, floored, net of the M7 fees; a loss by savings (sTotal includes
-    // paused members' savings, R-N), rounded against the member (R-A), never below 0 (same floor as ShareOut.payout).
-    function _savingsPart(CircleStorage.Layout storage $, uint256 s, uint256 w, uint256 e, int256 pot)
+    // Savings plus the yield share of pot = v − sTotal: a gain `gain` by weight, floored, added net of the protocol and
+    // manager fee; a loss by savings (sTotal includes paused members' savings, R-N), rounded against the member (R-A),
+    // never below 0 (same floor as ShareOut.payout), and no fee.
+    function _savingsPart(CircleStorage.Layout storage $, uint256 s, uint256 w, uint256 e, int256 v)
         private
         view
-        returns (uint256 value)
+        returns (uint256 value, uint256 gain)
     {
+        int256 pot = v - $.sTotal.toInt256();
         value = s;
         if (pot > 0) {
             uint256 wA = Weights.accrued($.wActive, $.sActive, $.wActiveLast, e);
-            uint256 g = wA == 0 ? 0 : Math.mulDiv(uint256(pot), w, wA);
-            value += g - _yieldFees($, g);
+            gain = wA == 0 ? 0 : Math.mulDiv(uint256(pot), w, wA);
+            value += Fees.net($, gain);
         } else if (pot < 0 && s != 0) {
             uint256 loss = Math.mulDiv(uint256(-pot), s, $.sTotal, Math.Rounding.Ceil);
             value = loss >= s ? 0 : s - loss;
         }
-    }
-
-    // M7 hook (07-CONTEXT D-03): the protocol fee, then the manager fee, on a positive yield share; _exit will credit
-    // them to the treasury's and the manager's claimable.
-    function _yieldFees(CircleStorage.Layout storage, uint256) private pure returns (uint256) {
-        return 0;
     }
 
     // R-M: a stale leave or kick (a loan, request, or pledge since, or no longer Active) is dropped, never reverted.

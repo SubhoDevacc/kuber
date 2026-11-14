@@ -4,6 +4,7 @@ pragma solidity 0.8.38;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {KuberCircle} from "../../src/KuberCircle.sol";
+import {Member, MemberStatus} from "../../src/lib/CircleTypes.sol";
 import {Invest} from "../../src/lib/Invest.sol";
 import {Membership} from "../../src/lib/Membership.sol";
 import {Weights} from "../../src/lib/Weights.sol";
@@ -32,8 +33,31 @@ contract KuberCircleHarness is KuberCircle {
         return Weights.accrued($.wSaver, $.sSaver, $.wSaverLast, e);
     }
 
+    function sActive() external view returns (uint256) {
+        return $.sActive;
+    }
+
+    function sSaver() external view returns (uint256) {
+        return $.sSaver;
+    }
+
     function creditClaimable(address member, uint256 amount) external {
         Weights.creditClaimable($, member, amount);
+    }
+
+    /// @dev Backer rewards owed to `member` and a savers' pot, both liabilities in V and terms of the cash floor.
+    function addLiabilities(address member, uint256 rewards, uint256 pot) external {
+        $.members[member].rewards += uint128(rewards);
+        $.totalRewardsOwed += rewards;
+        $.saverPot += pot;
+    }
+
+    /// @dev Forces a member state the public API cannot reach while a request is pending (07 D-10c guard tests).
+    function forceMember(address member, MemberStatus status, uint256 savings, uint256 pledgedOut) external {
+        Member storage m = $.members[member];
+        m.status = status;
+        m.savings = uint128(savings);
+        m.pledgedOut = uint128(pledgedOut);
     }
 
     /// @dev Stands in for a loss anywhere in the pot; pulls from the vaults first like a payout.

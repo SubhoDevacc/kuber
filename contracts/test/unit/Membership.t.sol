@@ -82,7 +82,7 @@ contract MembershipTest is GovTestBase {
         c.requestLeave();
         // Yield floor(61e6 × 2_100 / 12_600) = 10_166_666; saver share 8_100_000 × 2_100 / 10_500 = 1_620_000;
         // exit value 600e6 + 10_166_666 + 1_620_000 + 3e6 = 614_786_666; fee ceil(18_443_599.98) = 18_443_600.
-        (uint256 payout, uint256 fee) = c.exitValueOf(m1);
+        (uint256 payout, uint256 fee,,) = c.exitValueOf(m1);
         assertEq(payout, 596_343_066, "view payout");
         assertEq(fee, 18_443_600, "view fee, rounded up");
         assertEq(payout + fee, 614_786_666, "exit value");
@@ -121,7 +121,7 @@ contract MembershipTest is GovTestBase {
         vm.prank(m1);
         c.claim();
         assertEq(usdc.balanceOf(m1) - bal, 596_343_066, "claim pays the exit");
-        (payout, fee) = c.exitValueOf(m1);
+        (payout, fee,,) = c.exitValueOf(m1);
         assertEq(payout + fee, 0, "nothing after leaving");
     }
 
@@ -174,7 +174,7 @@ contract MembershipTest is GovTestBase {
         assertEq(p0.sTotal, 2_300e6, "sTotal");
         // Loss by savings: ceil(59_500_000 × 400e6 / 2_300e6) = 10_347_827; exit value 389_652_173 < savings 400e6;
         // fee ceil(11_689_565.19) = 11_689_566. By weight (m2 1_000e6 of 5_700e6) it would have been 10_438_597.
-        (uint256 payout, uint256 fee) = c.exitValueOf(ms[2]);
+        (uint256 payout, uint256 fee,,) = c.exitValueOf(ms[2]);
         assertEq(payout, 377_962_607, "view payout");
         assertEq(fee, 11_689_566, "view fee");
         assertEq(payout + fee, 400e6 - 10_347_827, "savings minus the loss share");
@@ -198,7 +198,7 @@ contract MembershipTest is GovTestBase {
         _payAllBut(c, ms, address(0));
         _drainAll(c);
         assertEq(c.getPublicSummary().yieldPot, -1_800e6, "every asset gone");
-        (uint256 payout, uint256 fee) = c.exitValueOf(ms[2]);
+        (uint256 payout, uint256 fee,,) = c.exitValueOf(ms[2]);
         assertEq(payout, 0, "savings part floored at 0");
         assertEq(fee, 0, "no fee on 0");
         _settleAt(c, 4);
@@ -220,7 +220,7 @@ contract MembershipTest is GovTestBase {
         c.requestLeave();
         _drainAll(c);
         // V = -(saverPot 8_100_000 + rewards 3e6) <= 0: savings part 0, saver share 0, rewards 3e6, fee 90_000.
-        (uint256 payout, uint256 fee) = c.exitValueOf(ms[1]);
+        (uint256 payout, uint256 fee,,) = c.exitValueOf(ms[1]);
         assertEq(payout, 2_910_000, "rewards minus fee");
         assertEq(fee, 90_000, "fee");
         _settleAt(c, 7);
@@ -240,7 +240,7 @@ contract MembershipTest is GovTestBase {
         _payNowAs(c, ms[2]);
         _payNowAs(c, ms[3]);
         assertEq(c.getMember(ms[2]).savings, 400e6, "pre-paid epoch 4");
-        (uint256 payout, uint256 fee) = c.exitValueOf(ms[2]);
+        (uint256 payout, uint256 fee,,) = c.exitValueOf(ms[2]);
         assertEq(payout, 388e6, "view payout");
         assertEq(fee, 12e6, "view fee");
         c.settle(type(uint256).max);
@@ -260,14 +260,14 @@ contract MembershipTest is GovTestBase {
         c.requestLeave();
         uint256 id = _ruleAs(c, ms[3], 7, 2_000);
         _votes(c, id, ms, 0, 6, true);
-        (uint256 payout, uint256 fee) = c.exitValueOf(ms[2]);
+        (uint256 payout, uint256 fee,,) = c.exitValueOf(ms[2]);
         assertEq(payout, 291e6, "view payout at the locked 300");
         assertEq(fee, 9e6, "ceil(300e6 x 300 / 10_000)");
         _settleAt(c, 4);
         assertEq(c.getCircleState().rules.exitFeeBps, 2_000, "applied first (D-06)");
         assertEq(c.getMember(ms[2]).claimable, 291e6, "locked fee, not 240e6");
         // Later leaves use the new rate: m3's value is 300e6 + 9e6 × 900e6 / 4_500e6 (saver share of m2's fee).
-        (payout, fee) = c.exitValueOf(ms[3]);
+        (payout, fee,,) = c.exitValueOf(ms[3]);
         assertEq(payout + fee, 301_800_000, "m3 exit value");
         assertEq(fee, Math.mulDiv(payout + fee, 2_000, 10_000, Math.Rounding.Ceil), "new rate");
     }
@@ -308,7 +308,7 @@ contract MembershipTest is GovTestBase {
 
     function test_D10_exitValueOfZeroForNonMembers() public {
         (KuberCircle c,) = _exitFixture();
-        (uint256 payout, uint256 fee) = c.exitValueOf(makeAddr("stranger"));
+        (uint256 payout, uint256 fee,,) = c.exitValueOf(makeAddr("stranger"));
         assertEq(payout, 0, "payout");
         assertEq(fee, 0, "fee");
     }
@@ -321,7 +321,7 @@ contract MembershipTest is GovTestBase {
         uint256 snap = vm.snapshotState();
         vm.prank(m1);
         c.requestLeave();
-        (uint256 payL, uint256 feeL) = c.exitValueOf(m1);
+        (uint256 payL, uint256 feeL,,) = c.exitValueOf(m1);
         assertEq(payL, 596_343_066, "leave payout");
         assertEq(feeL, 18_443_600, "leave fee");
         vm.revertToState(snap);
@@ -355,7 +355,7 @@ contract MembershipTest is GovTestBase {
         c.requestLeave();
         uint256 id = _kickAs(c, ms[0], ms[1]);
         _votes(c, id, ms, 2, 4, true);
-        (uint256 payout, uint256 fee) = c.exitValueOf(ms[1]);
+        (uint256 payout, uint256 fee,,) = c.exitValueOf(ms[1]);
         assertEq(payout, 291e6, "view payout");
         assertEq(fee, 9e6, "view fee");
         _settleAt(c, 4);
@@ -517,7 +517,7 @@ contract MembershipTest is GovTestBase {
         vm.prank(m2First ? ms[3] : ms[2]);
         c.requestLeave();
         // Each: 600e6 + floor(61e6 × 2_100 / 12_600) + 8_100_000 × 2_100 / 10_500 = 611_786_666; fee 18_353_600.
-        (uint256 payout, uint256 fee) = c.exitValueOf(ms[2]);
+        (uint256 payout, uint256 fee,,) = c.exitValueOf(ms[2]);
         assertEq(payout, 593_433_066, "view payout");
         assertEq(fee, 18_353_600, "view fee");
         _settleAt(c, 7);
