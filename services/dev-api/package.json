@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "DEV_MODE=true node src/index.ts",
     "build": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests --no-file-parallelism"
   },
   "dependencies": {
     "@kuber/shared": "workspace:*",

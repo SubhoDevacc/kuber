@@ -17,6 +17,11 @@
 - `pnpm dev` starts a local chain, deploys the real contracts, and starts the server and the web app.
 - The server controls time on the local chain, so the tutorial never waits for a round and gives the same numbers every run.
 
+### Hosted demo
+- `pnpm start:hosted` (and the `Dockerfile`) run everything as one process on one port. Every visitor gets a private test chain and server, so several people can run the tutorial at the same time.
+- The public chain endpoint only allows reading and sending signed transactions; time and balance controls are refused.
+- A test runs two users step by step in turn through the whole tutorial and checks both get the right payouts.
+
 ### Server
 - Sign-up with a display name; marks the wallet verified; gives 20,000 test mUSDC once per account.
 - Tutorial engine: one practice circle per user with five practice members (Bob, Cara, Dave, Erin, Frank), 14 steps in six chapters.
@@ -33,13 +38,12 @@
 ### Tutorial and app
 1. Real sign-in with Privy. The app uses a practice wallet made in the browser.
 2. The user backing someone else's loan in the tutorial (today the user sees backing from the borrower's side, and sees Dave's backers lose).
-3. Two tutorials at the same moment on one server. Time is shared on the local chain, so two users running at once can push each other's circle past a round. One user after another works.
+3. In `pnpm dev` (one shared chain), two tutorials at the same moment can push each other's circle past a round. The hosted demo does not have this limit. In the hosted demo a visitor whose private chain is stopped after 30 idle minutes starts the tutorial again.
 4. The full page set in `docs/PAGES.md` outside the tutorial: create a circle, explore and join, loans, backing, voting, profile.
-5. The circle list shows every practice circle on the server, not only the caller's.
 6. Server state is in memory. Restart the server together with the chain (`pnpm dev` does).
 
 ### Hosting
-7. A hosted version for testers. Two ways: the same controlled environment on a server, or the tutorial on Fuji in real time (short rounds, gas top-up for new accounts).
+7. The tutorial on Fuji in real time (short rounds, gas top-up for new accounts). The hosted demo uses private test chains instead.
 
 ### Contracts
 8. Governance rule: a member whose proposal fails cannot propose in the next round, and a rule proposal equal to the current value is rejected. Without it one member can keep a proposal slot busy. This blocks a change but moves no money.

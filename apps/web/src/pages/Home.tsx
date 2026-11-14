@@ -138,50 +138,39 @@ export function Home({
             </p>
           ) : (
             <ul className="grid gap-3">
-              {[...circles]
-                .sort(
-                  (a, b) =>
-                    Number(b.address === me?.tutorial?.circle) -
-                    Number(a.address === me?.tutorial?.circle),
-                )
-                .map((c) => (
-                  <li key={c.address}>
-                    <button
-                      type="button"
-                      onClick={() => onOpen(c.address)}
-                      className="flex w-full items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4 text-left hover:border-brand"
-                    >
-                      <span className="min-w-0">
-                        <span className="flex flex-wrap items-center gap-2">
-                          <span className="font-display text-lg font-bold text-ink">
-                            {c.name}
-                          </span>
-                          {c.practice && <PracticeTag />}
-                          {c.address === me?.tutorial?.circle && (
-                            <span className="text-sm text-ink-2">Yours</span>
-                          )}
+              {circles.map((c) => (
+                <li key={c.address}>
+                  <button
+                    type="button"
+                    onClick={() => onOpen(c.address)}
+                    className="flex w-full items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4 text-left hover:border-brand"
+                  >
+                    <span className="min-w-0">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-display text-lg font-bold text-ink">
+                          {c.name}
                         </span>
-                        <span className="mt-0.5 block text-sm text-ink-2">
-                          {c.status === "Completed"
-                            ? `Ended after ${c.totalRounds} rounds`
-                            : c.status === "Forming"
-                              ? "Waiting to start"
-                              : `Round ${c.round} of ${c.totalRounds}`}
-                          , {c.members} members
-                        </span>
+                        {c.practice && <PracticeTag />}
                       </span>
-                      <Chip
-                        tone={
-                          c.status === "Completed"
-                            ? "idle"
-                            : statusTone(c.status)
-                        }
-                      >
-                        {c.status}
-                      </Chip>
-                    </button>
-                  </li>
-                ))}
+                      <span className="mt-0.5 block text-sm text-ink-2">
+                        {c.status === "Completed"
+                          ? `Ended after ${c.totalRounds} rounds`
+                          : c.status === "Forming"
+                            ? "Waiting to start"
+                            : `Round ${c.round} of ${c.totalRounds}`}
+                        , {c.members} members
+                      </span>
+                    </span>
+                    <Chip
+                      tone={
+                        c.status === "Completed" ? "idle" : statusTone(c.status)
+                      }
+                    >
+                      {c.status}
+                    </Chip>
+                  </button>
+                </li>
+              ))}
             </ul>
           )}
         </div>

@@ -1,4 +1,4 @@
-import { CircleCheck } from "lucide-react";
+import { Check, CircleCheck, TriangleAlert } from "lucide-react";
 import { ChangeCard } from "../components/ChangeCard";
 import { Button, Wordmark } from "../components/ui";
 import { formatAmount, isZero } from "../lib/money";
@@ -72,9 +72,15 @@ export function Finish({
             {hit.map((m) => (
               <li
                 key={m.address}
-                className="flex flex-wrap items-baseline justify-between gap-x-3 rounded-xl border-l-4 border-l-bad bg-surface px-4 py-3"
+                className="flex flex-wrap items-baseline justify-between gap-x-3 rounded-xl border border-bad/30 bg-bad-soft px-4 py-3"
               >
-                <span className="font-semibold">{m.name}</span>
+                <span className="flex items-center gap-1.5 self-center font-semibold">
+                  <TriangleAlert
+                    aria-hidden
+                    className="size-4 shrink-0 text-bad"
+                  />
+                  {m.name}
+                </span>
                 <span className="num text-bad">
                   {!isZero(m.lost) && `lost ${formatAmount(m.lost)} mUSDC`}
                   {!isZero(m.lost) && !isZero(m.debt) && ", "}
@@ -83,11 +89,14 @@ export function Finish({
                 </span>
               </li>
             ))}
-            <li className="rounded-xl border-l-4 border-l-good bg-surface px-4 py-3">
-              <span className="font-semibold">
-                Everyone else lost nothing:{" "}
+            <li className="flex items-start gap-1.5 rounded-xl border border-good/30 bg-good-soft px-4 py-3">
+              <Check aria-hidden className="mt-1 size-4 shrink-0 text-good" />
+              <span>
+                <span className="font-semibold">
+                  Everyone else lost nothing:{" "}
+                </span>
+                {names(safe)}.
               </span>
-              <span>{names(safe)}.</span>
             </li>
           </ul>
           <p className="text-sm text-ink-2">

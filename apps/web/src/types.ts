@@ -74,6 +74,8 @@ export type CircleSnapshot = {
     rewards: string;
     claimable: string;
     status: string;
+    /** Only after you collected your share-out: the amount paid to you. */
+    paidOut?: string;
   };
   members: Member[];
   loans: Loan[];

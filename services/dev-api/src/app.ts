@@ -198,13 +198,19 @@ export const createApp = async (env: Env) => {
   );
 
   app.get("/circles", async (ctx) => {
+    const me = ctx.get("user").address.toLowerCase();
     const list = await c.read<readonly Address[]>(
       c.factory,
       abis.factory,
       "allCircles",
     );
+    // Practice circles: only the caller's own (its names list includes them). Every other circle is listed.
+    const mine = list.filter((a) => {
+      const names = tut.practice.get(a.toLowerCase());
+      return !names || names.has(me);
+    });
     const rows = await Promise.all(
-      list.map(async (address) => {
+      mine.map(async (address) => {
         const s = await c.read<{
           name: string;
           status: number;

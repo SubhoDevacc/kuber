@@ -68,8 +68,13 @@ export async function sendAction(
   }
   const abi = (action.target === "usdc" ? mockUsdcAbi : kuberCircleAbi) as Abi;
   const address = action.target === "usdc" ? await usdc() : circle;
-  const transport = http(new URL("/rpc", location.origin).toString());
   const account = privateKeyToAccount(key);
+  // The hosted server routes /rpc to this wallet's own chain by this header; the Vite proxy ignores it.
+  const transport = http(new URL("/rpc", location.origin).toString(), {
+    fetchOptions: {
+      headers: { authorization: `Bearer dev:${account.address}` },
+    },
+  });
   const wallet = createWalletClient({ account, chain, transport });
   const reader = createPublicClient({ chain, transport });
   try {

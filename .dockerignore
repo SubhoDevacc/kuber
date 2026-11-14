@@ -1,0 +1,15 @@
+.git
+.planning
+.claude
+.impeccable
+OWNER.local.md
+**/.env*
+!**/.env.example
+**/node_modules
+**/.DS_Store
+contracts/out
+contracts/cache
+contracts/broadcast
+deployments/local*.json
+apps/web/dist
+docs

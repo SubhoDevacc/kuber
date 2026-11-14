@@ -11,6 +11,8 @@ Built by Subham Mandal.
 You need [Foundry](https://getfoundry.sh) 1.9, Node 26 and pnpm 12.
 
 ```sh
+git clone --recurse-submodules https://github.com/SubhoDevacc/kuber.git
+cd kuber
 pnpm install
 pnpm dev
 ```
@@ -88,6 +90,7 @@ pnpm lint && pnpm check:versions
 | `services/keeper/` | Starts circles and closes rounds for circles outside the tutorial |
 | `apps/web/` | The web app (React, Vite, Tailwind) |
 | `scripts/` | `dev.ts` (one-command start), `deploy.ts`, `verify.ts` |
+| `Dockerfile` | The hosted demo: one container where every visitor gets a private test chain (`pnpm start:hosted`) |
 | `docs/` | Product, spec, pages, test plan, build plan |
 | `STATUS.md` | What is done and what is left |
 

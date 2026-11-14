@@ -222,11 +222,17 @@ export function Tutorial({
         <aside
           ref={panel}
           aria-label="Guide"
-          className="fixed inset-x-0 bottom-0 z-20 max-h-[60dvh] overflow-y-auto rounded-t-3xl border-t border-line bg-surface shadow-[0_-8px_30px_rgba(16,48,42,0.14)] lg:sticky lg:top-[60px] lg:max-h-[calc(100dvh-76px)] lg:self-start lg:rounded-3xl lg:border lg:shadow-none"
+          className="fixed inset-x-0 bottom-0 z-20 max-h-[60dvh] overflow-y-auto rounded-t-3xl border-t border-line bg-surface shadow-[0_-8px_30px_rgba(16,48,42,0.14)] lg:sticky lg:top-[60px] lg:flex lg:max-h-[calc(100dvh-76px)] lg:flex-col lg:self-start lg:overflow-hidden lg:rounded-3xl lg:border lg:shadow-none"
         >
-          <div className="grid gap-4 p-4 pb-0 sm:p-5 sm:pb-0">
+          {/* Wide: only the change card scrolls (fading out at its edge); the step text and button always show in full. */}
+          <div className="grid gap-4 p-4 pb-0 sm:p-5 sm:pb-0 lg:flex lg:min-h-0 lg:flex-col">
             {t.lastChange && (reviewing || (hasChange && wide)) && (
-              <ChangeCard key={t.step.id} change={t.lastChange} tx={lastTx} />
+              <div
+                key={t.step.id}
+                className="lg:-mb-4 lg:min-h-0 lg:overflow-y-auto lg:pb-4 lg:[mask-image:linear-gradient(to_bottom,black_calc(100%_-_1rem),transparent)]"
+              >
+                <ChangeCard change={t.lastChange} tx={lastTx} />
+              </div>
             )}
             {t.lastChange && hasChange && !wide && !reviewing && (
               <button
@@ -246,7 +252,7 @@ export function Tutorial({
                 />
               </button>
             )}
-            <div hidden={reviewing}>
+            <div hidden={reviewing} className="lg:shrink-0">
               <p className="text-xs font-semibold text-brand">
                 Step {t.stepIndex + 1} of {t.stepCount}
               </p>
@@ -263,7 +269,7 @@ export function Tutorial({
             </div>
           </div>
 
-          <div className="sticky bottom-0 grid gap-3 bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5">
+          <div className="sticky bottom-0 grid gap-3 bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5 lg:shrink-0">
             {busy && (
               <div className="flex items-start gap-3 rounded-xl bg-brand-soft p-3 text-sm text-ink">
                 <LoaderCircle

@@ -146,7 +146,11 @@ export function CircleView({ c }: { c: CircleSnapshot }) {
           aside={<Chip tone={statusTone(you.status)}>{you.status}</Chip>}
         >
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-            <Stat label="Your savings" value={you.savings} strong />
+            {you.paidOut === undefined ? (
+              <Stat label="Your savings" value={you.savings} strong />
+            ) : (
+              <Stat label="Share-out collected" value={you.paidOut} strong />
+            )}
             <Stat label="Your wallet" value={you.wallet} />
             <Stat label="Loan to repay" value={you.loanOwed} />
             <Stat label="Your backing" value={you.pledged} />
@@ -168,7 +172,7 @@ export function CircleView({ c }: { c: CircleSnapshot }) {
             return (
               <li
                 key={m.address}
-                className={`px-1 py-3 ${m.you ? "rounded-lg bg-accent-soft/60" : ""} ${tone === "bad" ? "border-l-4 border-l-bad pl-3" : ""}`}
+                className={`px-1 py-3 ${tone === "bad" ? "rounded-lg bg-bad-soft/60" : m.you ? "rounded-lg bg-accent-soft/60" : ""}`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">

@@ -72,6 +72,8 @@ export type Facts = {
   user: Address | null;
   userWallet: bigint;
   userAllowance: bigint;
+  /** The user's share-out once withdrawn (0 before); the contract leaves `savings` unchanged after withdraw. */
+  userPaidOut: bigint;
 };
 
 type StateRaw = {
@@ -204,6 +206,20 @@ export const readFacts = async (
       behind,
     };
   });
+  const me = user
+    ? members.find((m) => m.address.toLowerCase() === user.toLowerCase())
+    : undefined;
+  // The amount withdraw() paid is only in its Withdrawn event.
+  const paid =
+    user && me?.withdrawn
+      ? ((await c.pub.getContractEvents({
+          address: circle,
+          abi: abis.circle,
+          eventName: "Withdrawn",
+          args: { member: user },
+          fromBlock: 0n,
+        } as never)) as unknown as { args: { amount: bigint } }[])
+      : [];
   return {
     circle,
     name: s.name,
@@ -227,6 +243,7 @@ export const readFacts = async (
     user,
     userWallet,
     userAllowance,
+    userPaidOut: paid.reduce((t, l) => t + l.args.amount, 0n),
   };
 };
 
@@ -278,6 +295,7 @@ export const memberStatus = (m: MemberFacts | undefined): string => {
   if (m.status === 2) return "Paused";
   if (m.status === 3) return "Left";
   if (m.status === 4) return "Removed";
+  if (m.withdrawn) return "Paid out";
   if (m.behind === 1) return "1 behind";
   if (m.behind >= 2) return `${m.behind} behind`;
   return "On track";
@@ -335,6 +353,8 @@ export const toSnapshot = (f: Facts, names: Names, practice: boolean) => {
           rewards: s(me.rewards),
           claimable: s(me.claimable),
           status: memberStatus(me),
+          // Only once withdrawn: the share-out collected.
+          ...(me.withdrawn ? { paidOut: s(f.userPaidOut) } : {}),
         }
       : null,
     members: f.members.map((m) => ({

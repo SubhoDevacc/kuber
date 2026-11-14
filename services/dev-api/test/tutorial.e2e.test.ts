@@ -287,8 +287,14 @@ test("tutorial end to end: two users one after the other, then a reset", async (
   expect(reset.snapshot.status).toBe("Forming");
   expect(reset.lastChange).toBeNull();
 
+  // Each user sees only their own practice circles (the second user: the finished one and the reset one).
   const list = (await api(first.me, "GET", "/circles")).json;
-  expect(list.filter((c: J) => c.practice).length).toBe(3);
+  expect(list.filter((c: J) => c.practice).map((c: J) => c.address)).toEqual([
+    first.s.circle,
+  ]);
+  const list2 = (await api(second.me, "GET", "/circles")).json;
+  expect(list2.filter((c: J) => c.practice).length).toBe(2);
   const snap = await api(first.me, "GET", `/circles/${first.s.circle}`);
-  expect(snap.json.you.status).toBe("On track");
+  expect(snap.json.you.status).toBe("Paid out");
+  expect(snap.json.you.paidOut).toBe("712043010");
 }, 300_000);

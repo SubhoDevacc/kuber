@@ -11,7 +11,8 @@
     "check:versions": "node scripts/check-versions.ts",
     "deploy:local": "node scripts/deploy.ts --network local",
     "dev": "node scripts/dev.ts",
-    "lint": "biome check ."
+    "lint": "biome check .",
+    "start:hosted": "node services/dev-api/src/host.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.7"
