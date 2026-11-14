@@ -1,0 +1,430 @@
+{
+  "what": "Sample circles run by scripts/fuji-exercise.ts on Avalanche Fuji through the live Kuber server and the real contracts. Users are throwaway wallets made by the script; practice members and the keeper are the server's.",
+  "startedAt": "2026-11-14T07:28:49.486Z",
+  "finishedAt": "2026-11-14T07:45:04.501Z",
+  "server": "https://kuber-production.up.railway.app/api/app",
+  "rpc": "https://avalanche-fuji-c-chain-rpc.publicnode.com",
+  "chainId": 43113,
+  "users": [
+    {
+      "name": "Asha K",
+      "address": "0x3773945c9FE13Ba8400383c2E546E701E0300f38"
+    },
+    {
+      "name": "Ravi M",
+      "address": "0x9d529eEb5ffE691f78219C519b9FFB0b7C986884"
+    },
+    {
+      "name": "Meera S",
+      "address": "0x698fc2fEAc364f60e67b07dEE0208774c0897A65"
+    },
+    {
+      "name": "Kabir T",
+      "address": "0x0d1EabFfECF58b3B3C66E99Da359C46e1B46B816"
+    }
+  ],
+  "circles": [
+    {
+      "name": "Market friends",
+      "address": "0x35490be73e3303B8f8922C8Cd93Da050DF1d5016",
+      "snowtrace": "https://testnet.snowtrace.io/address/0x35490be73e3303B8f8922C8Cd93Da050DF1d5016",
+      "creator": "Asha K",
+      "secondUser": "Kabir T",
+      "finished": false,
+      "txCount": 5,
+      "txByAction": {
+        "createCircle": 1,
+        "invite": 1,
+        "approve": 2,
+        "join": 1
+      },
+      "serverActions": [
+        {
+          "circle": "Market friends",
+          "action": "practice-members",
+          "ok": false
+        }
+      ],
+      "txs": [
+        {
+          "circle": "Market friends",
+          "action": "createCircle",
+          "from": "Asha K",
+          "hash": "0x85d2fba9f6b0ede97b38c170bf4b0726810dae1edc1de61045e69b0665e496ba",
+          "ok": true,
+          "time": "2026-11-14T07:29:21.462Z"
+        },
+        {
+          "circle": "Market friends",
+          "action": "invite",
+          "from": "Asha K",
+          "hash": "0x20ea3c8755d69d1bacbcab7c5824b461202f4cc315d3f5c92cce5d2bb8dd183d",
+          "ok": true,
+          "time": "2026-11-14T07:29:25.957Z"
+        },
+        {
+          "circle": "Market friends",
+          "action": "approve",
+          "from": "Kabir T",
+          "hash": "0x6688ceb12d6e61d7b7affa7176c664733a8a8d1ef09cc9d90347dab41205c579",
+          "ok": true,
+          "time": "2026-11-14T07:29:30.433Z"
+        },
+        {
+          "circle": "Market friends",
+          "action": "join",
+          "from": "Kabir T",
+          "hash": "0x9a5b0b7b8fe5183656311d43529680b38cc3f3371290f41d63a75aeb87d9852f",
+          "ok": true,
+          "time": "2026-11-14T07:29:34.951Z"
+        },
+        {
+          "circle": "Market friends",
+          "action": "approve",
+          "from": "Asha K",
+          "hash": "0x5f20b2e79b84cbddca05d98ea1b71a89ac9dec9d1bb0b307ee210aab3d829c34",
+          "ok": true,
+          "time": "2026-11-14T07:30:04.409Z"
+        }
+      ],
+      "status": "Cancelled",
+      "note": "The server restarted (redeploy) while adding practice members: 1 of 3 joined, so the circle had 3 of 5 members at its start time and the contract cancelled it."
+    },
+    {
+      "name": "Harbor circle",
+      "address": "0xDc385Ed0e3250c0297b4C44Fc64F55122FD25bC4",
+      "snowtrace": "https://testnet.snowtrace.io/address/0xDc385Ed0e3250c0297b4C44Fc64F55122FD25bC4",
+      "creator": "Ravi M",
+      "secondUser": null,
+      "finished": true,
+      "txCount": 14,
+      "txByAction": {
+        "createCircle": 1,
+        "approve": 1,
+        "payNow (save now)": 4,
+        "requestLoan": 1,
+        "propose: make Gita the fund manager": 1,
+        "vote yes (manager)": 1,
+        "claim (take loan)": 1,
+        "vote yes (plan)": 2,
+        "repayAll": 1,
+        "withdraw (collect share-out)": 1
+      },
+      "serverActions": [
+        {
+          "circle": "Harbor circle",
+          "action": "practice-members",
+          "ok": true
+        },
+        {
+          "circle": "Harbor circle",
+          "action": "practice-back",
+          "ok": true
+        },
+        {
+          "circle": "Harbor circle",
+          "action": "practice-plan",
+          "ok": true
+        },
+        {
+          "circle": "Harbor circle",
+          "action": "practice-plan",
+          "ok": true
+        }
+      ],
+      "txs": [
+        {
+          "circle": "Harbor circle",
+          "action": "createCircle",
+          "from": "Ravi M",
+          "hash": "0x49f17fb2be2a64edff079139ecc513379348bc604c12eb70afad11ff08d2939a",
+          "ok": true,
+          "time": "2026-11-14T07:29:21.441Z"
+        },
+        {
+          "circle": "Harbor circle",
+          "action": "approve",
+          "from": "Ravi M",
+          "hash": "0xe306314ac7808685d099bf9bcd787997d43a156b68296d130f4ac4da3b1025b2",
+          "ok": true,
+          "time": "2026-11-14T07:29:55.905Z"
+        },
+        {
+          "circle": "Harbor circle",
+          "action": "payNow (save now)",
+          "from": "Ravi M",
+          "hash": "0x503a7819d85c0b3ba76e503ae07a4323a05b5da4f69b63d03e19e2e3ec152300",
+          "ok": true,
+          "time": "2026-11-14T07:32:03.243Z"
+        },
+        {
+          "circle": "Harbor circle",
+          "action": "payNow (save now)",
+          "from": "Ravi M",
+          "hash": "0x707ca24ebbbed26bdf9115238ac06adb6d290d0b4a82466f8410e1390bf691b1",
+          "ok": true,
+          "time": "2026-11-14T07:34:08.279Z"
+        },
+        {
+          "circle": "Harbor circle",
+          "action": "payNow (save now)",
+          "from": "Ravi M",
+          "hash": "0xfc06daa02d24753b8f3e088070a5c41d5a0c0dc83facffdcf3267a885d6d01d6",
+          "ok": true,
+          "time": "2026-11-14T07:36:02.511Z"
+        },
+        {
+          "circle": "Harbor circle",
+          "action": "requestLoan",
+          "from": "Ravi M",
+          "hash": "0xbe9b034bae4ae355e1eed7be32d7b0529a8ed8361077752daca0fac4ab648064",
+          "ok": true,
+          "time": "2026-11-14T07:36:06.858Z"
+        },
+        {
+          "circle": "Harbor circle",
+          "action": "propose: make Gita the fund manager",
+          "from": "Ravi M",
+          "hash": "0xbe93738ed766c374d0a23cbe10c3c1fed0674be1c2a5c19f954ca8b86108c2bd",
+          "ok": true,
+          "time": "2026-11-14T07:36:16.367Z"
+        },
+        {
+          "circle": "Harbor circle",
+          "action": "vote yes (manager)",
+          "from": "Ravi M",
+          "hash": "0x1d7c43ea5adf8367a9e95fce4b0ae20785fbb40bc49659e36239fc6964d8f438",
+          "ok": true,
+          "time": "2026-11-14T07:36:21.843Z"
+        },
+        {
+          "circle": "Harbor circle",
+          "action": "claim (take loan)",
+          "from": "Ravi M",
+          "hash": "0xec5e0a4df6a52a712736ec2218c80cabfcd2e38dee615c82b3c49851f6581c37",
+          "ok": true,
+          "time": "2026-11-14T07:37:58.534Z"
+        },
+        {
+          "circle": "Harbor circle",
+          "action": "payNow (save now)",
+          "from": "Ravi M",
+          "hash": "0xb5dbe351946cef69cf07608e9373641afadf864fe751052ae8618b2026ae9716",
+          "ok": true,
+          "time": "2026-11-14T07:38:04.120Z"
+        },
+        {
+          "circle": "Harbor circle",
+          "action": "vote yes (plan)",
+          "from": "Ravi M",
+          "hash": "0x3bde88aa9c9111f4bc7b598ad385bf25e130bd67b3104d17120732b8705652b8",
+          "ok": true,
+          "time": "2026-11-14T07:38:14.496Z"
+        },
+        {
+          "circle": "Harbor circle",
+          "action": "repayAll",
+          "from": "Ravi M",
+          "hash": "0x08d13fe80a885316ea21fc1a387895885dd5ee3699050290e9ca5e5c3aeb9ed8",
+          "ok": true,
+          "time": "2026-11-14T07:39:59.128Z"
+        },
+        {
+          "circle": "Harbor circle",
+          "action": "vote yes (plan)",
+          "from": "Ravi M",
+          "hash": "0xc0a86dc9a055c4dfb37f95c65ea5c7c848e34f97d8c3e0e4d1a59d08ef8a31ef",
+          "ok": true,
+          "time": "2026-11-14T07:40:08.855Z"
+        },
+        {
+          "circle": "Harbor circle",
+          "action": "withdraw (collect share-out)",
+          "from": "Ravi M",
+          "hash": "0x39a773953e6025d5480524addb75403f6da092480700496b63941e4c2337ee9d",
+          "ok": true,
+          "time": "2026-11-14T07:44:08.086Z"
+        }
+      ],
+      "status": "Completed"
+    },
+    {
+      "name": "Office savers",
+      "address": "0x96d0fFbae2C07A4bB4eDf20c819642C3c7299871",
+      "snowtrace": "https://testnet.snowtrace.io/address/0x96d0fFbae2C07A4bB4eDf20c819642C3c7299871",
+      "creator": "Meera S",
+      "secondUser": null,
+      "finished": true,
+      "txCount": 13,
+      "txByAction": {
+        "createCircle": 1,
+        "approve": 1,
+        "payNow (save now)": 2,
+        "requestLoan": 1,
+        "propose: rule 7 to 200 bps": 1,
+        "vote yes (rule)": 1,
+        "claim (take loan)": 1,
+        "propose: make Gita the fund manager": 1,
+        "vote yes (manager)": 1,
+        "repayAll": 1,
+        "vote yes (plan)": 1,
+        "withdraw (collect share-out)": 1
+      },
+      "serverActions": [
+        {
+          "circle": "Office savers",
+          "action": "practice-members",
+          "ok": true
+        },
+        {
+          "circle": "Office savers",
+          "action": "practice-back",
+          "ok": true
+        },
+        {
+          "circle": "Office savers",
+          "action": "practice-plan",
+          "ok": true
+        }
+      ],
+      "txs": [
+        {
+          "circle": "Office savers",
+          "action": "createCircle",
+          "from": "Meera S",
+          "hash": "0x2e78d59860b3b5ea32613c751634cf8dab82285cff4c5c770216428a8d4f0d4d",
+          "ok": true,
+          "time": "2026-11-14T07:29:21.427Z"
+        },
+        {
+          "circle": "Office savers",
+          "action": "approve",
+          "from": "Meera S",
+          "hash": "0x90ecdd8ecedd3e1d87ff7793dbc81f9f04e84448dcf99a85efcc12b77111cb95",
+          "ok": true,
+          "time": "2026-11-14T07:29:41.062Z"
+        },
+        {
+          "circle": "Office savers",
+          "action": "payNow (save now)",
+          "from": "Meera S",
+          "hash": "0x5926e83740fb6678fd220f8722091e2101eae6e06dfdd916d8a4eceaaf7d9618",
+          "ok": true,
+          "time": "2026-11-14T07:36:04.687Z"
+        },
+        {
+          "circle": "Office savers",
+          "action": "requestLoan",
+          "from": "Meera S",
+          "hash": "0xc63bdb296c2a33cb297033780970614f3ab3fb17a70d19de1aa0e482e6d3243f",
+          "ok": true,
+          "time": "2026-11-14T07:36:09.043Z"
+        },
+        {
+          "circle": "Office savers",
+          "action": "propose: rule 7 to 200 bps",
+          "from": "Meera S",
+          "hash": "0x3283bfd8da2eb9b128d73da3b8d8d9d6a999e975aa340988a3307c4f2ced50be",
+          "ok": true,
+          "time": "2026-11-14T07:36:18.087Z"
+        },
+        {
+          "circle": "Office savers",
+          "action": "vote yes (rule)",
+          "from": "Meera S",
+          "hash": "0x131b6ebb721665d8b8bf84d878b36746eee267a6d66a9c3658b61de78c6fadb9",
+          "ok": true,
+          "time": "2026-11-14T07:36:24.238Z"
+        },
+        {
+          "circle": "Office savers",
+          "action": "claim (take loan)",
+          "from": "Meera S",
+          "hash": "0xdfbaeed2bb481b28f645b087be6c86ee03e0fb761b09a3c61436932138a67b64",
+          "ok": true,
+          "time": "2026-11-14T07:37:58.524Z"
+        },
+        {
+          "circle": "Office savers",
+          "action": "propose: make Gita the fund manager",
+          "from": "Meera S",
+          "hash": "0x307efc4b90cd7fdfd1816afc13d16da17e07a6f3536793caef7b9a2f518a9868",
+          "ok": true,
+          "time": "2026-11-14T07:38:04.101Z"
+        },
+        {
+          "circle": "Office savers",
+          "action": "vote yes (manager)",
+          "from": "Meera S",
+          "hash": "0x7186e67b77242a544f0b5be645c4cc362c403e35f3fd701f004a24c5fe242c7d",
+          "ok": true,
+          "time": "2026-11-14T07:38:09.699Z"
+        },
+        {
+          "circle": "Office savers",
+          "action": "repayAll",
+          "from": "Meera S",
+          "hash": "0x800d3b037f270fb458d51051aa8725dd7405cc442892a1efc95b5484beaf7a89",
+          "ok": true,
+          "time": "2026-11-14T07:40:05.842Z"
+        },
+        {
+          "circle": "Office savers",
+          "action": "vote yes (plan)",
+          "from": "Meera S",
+          "hash": "0x95412ddd7a0a8fc88284b8385f6a41112663e340867b129c87843b1cda29bcca",
+          "ok": true,
+          "time": "2026-11-14T07:40:15.843Z"
+        },
+        {
+          "circle": "Office savers",
+          "action": "payNow (save now)",
+          "from": "Meera S",
+          "hash": "0xf88d3449bddacc6a8338e1e15ab3821e910986490cf7b51c4b121341d9d23054",
+          "ok": true,
+          "time": "2026-11-14T07:42:02.479Z"
+        },
+        {
+          "circle": "Office savers",
+          "action": "withdraw (collect share-out)",
+          "from": "Meera S",
+          "hash": "0x282923ca5cb61a7578970632bbb86a701b14f5f497edf5e715c998227e9c2cba",
+          "ok": true,
+          "time": "2026-11-14T07:44:09.157Z"
+        }
+      ],
+      "status": "Completed"
+    }
+  ],
+  "setupTxs": [],
+  "totals": {
+    "txs": 32,
+    "txsOk": 32,
+    "byAction": {
+      "createCircle": 3,
+      "invite": 1,
+      "approve": 4,
+      "join": 1,
+      "payNow (save now)": 6,
+      "requestLoan": 2,
+      "propose: make Gita the fund manager": 2,
+      "propose: rule 7 to 200 bps": 1,
+      "vote yes (manager)": 2,
+      "vote yes (rule)": 1,
+      "claim (take loan)": 2,
+      "vote yes (plan)": 3,
+      "repayAll": 2,
+      "withdraw (collect share-out)": 2
+    },
+    "serverActions": 8,
+    "refused": 1
+  },
+  "refused": [
+    {
+      "circle": "Market friends",
+      "action": "practice-members",
+      "reason": "Something went wrong on our side. Please try again."
+    }
+  ],
+  "note": "The script was stopped once both started circles had collected their share-out; the last periodic write (07:45:04Z) holds every transaction."
+}
