@@ -1,127 +1,143 @@
-# Kuber — Submission Video (today's cut)
+# Kuber — Submission Video (explainer script)
 
-A short video for the submission, recorded from the sprint build (`.planning/phases/11-deadline-sprint/SPRINT.md`). In that build the tutorial **is** the app: a new user taps Start, gets test money, and plays six chapters on a real practice circle. The video follows those six chapters.
+This is the script for the submission video. The angle is friends: we already ask friends for loans and for investing tips, and Kuber turns that into a circle with rules. It explains what Kuber does, what it fixes and who needs it, then shows it working: first in the tutorial, then in the real app on Avalanche Fuji.
 
-The 28-clip script in [DEMO_VIDEO.md](DEMO_VIDEO.md) is the later, full version. It needs screens the sprint does not build (email sign-in, create and invite, Explore, Add money, fund manager, leave, late join).
+There is no time limit. The narration is about 1,000 words, which is roughly six to seven minutes with the screen actions.
+
+The 28-clip script in [DEMO_VIDEO.md](DEMO_VIDEO.md) is the older, longer plan for after the submission.
 
 ## 1. Format
 - **Frame:** 9:16 vertical, 1080×1920, phone view.
-- **Length:** 9 clips, about 3 min 15 s.
-- **Voice:** AI voice, English, one voice. Amounts are spoken as plain numbers.
-- **Story:** the SPEC §4 example, as the sprint runs it. Six members, seven rounds, 100 per round.
-  - **You** (shown as Alice) borrow 350 and repay.
-  - **Bob** backs your loan and earns 6.40.
-  - **Dave** borrows 350 and stops paying.
-  - **Cara** and **Erin** back Dave and lose 30 and 20.
-  - **Frank** only saves.
-- **Honest labels on screen:** "Local test chain · test money" in S2, and "Practice members are run by the app" in S3.
+- **Voice:** the approved narrator (a confident young man, light bass), made locally with `~/voice/kuber/make.sh`. The text the voice reads is in `~/voice/kuber/clips/`, with amounts spelled as they are said.
+- **Timing:** the voice is recorded first and the picture is cut to it, so the tables below have no times.
+- **Look:** the app's own green and gold, with its rounded heading font.
 
-## 2. Clip list
-| # | Clip | Type | Length |
+### How it stays easy to follow
+- One idea per beat, and two or three sentences at most.
+- The picture changes on every beat.
+- The key phrase or number appears on screen as it is spoken.
+- A strip at the top always shows where you are: the part, and the chapter inside the tutorial.
+- The four problems from Part 1 stay as a checklist and are ticked off in Part 7.
+
+## 2. Parts
+| # | Part | Type |
+|---|---|---|
+| 1 | The problem | Motion graphics |
+| 2 | What Kuber does | Motion graphics |
+| 3 | Where it is needed | Motion graphics |
+| 4 | Getting started | Phone |
+| 5 | Learning it in a practice circle (six chapters) | Phone, tutorial mode |
+| 6 | The real app | Phone, Avalanche Fuji |
+| 7 | What it fixes | Motion graphics |
+| 8 | What this build is | Text card |
+| 9 | Close | Outro |
+
+## 3. Script
+
+### Part 1. The problem
+| # | On screen | Voiceover |
+|---|---|---|
+| 1.1 | Two chat bubbles: "Can you lend me 200?" and "What should I invest in?" | When you need money fast, you ask a friend first. And when you have money to invest, you ask the friend who always seems to get it right. |
+| 1.2 | A group chat scrolling past an unanswered "did you pay me back?" | Both of these run on group chats and memory. Somebody lends 200, somebody forgets, and nobody wants to be the one who brings it up. |
+| 1.3 | One friend's tip message; five others each staring at their own phone | The friend with good investing tips can only give tips. Everyone still invests alone, and half the group never gets around to it. |
+| 1.4 | Coins from the group drop into one pot, then "It fails in four places." | Some groups go further and pool money every month. That fails in four places. |
+| 1.5 | A checklist builds, one line per problem: 1 The pot can leave · 2 Who paid? · 3 Idle money · 4 One default hits everyone | One. Somebody has to hold the pot, and that person can leave with it. Two. The records sit in a chat or a notebook, so people argue about who paid. Three. Between loans the money sits idle and earns nothing. Four. When one member doesn't repay, the loss comes out of everyone's savings. |
+| 1.6 | "Deposit 100, borrow 70" | Lending apps on a blockchain don't help here. They lend you less than you deposit, so they give nothing to a person who needs a little more than they have. |
+
+### Part 2. What Kuber does
+| # | On screen | Voiceover |
+|---|---|---|
+| 2.1 | The Kuber wordmark, then "5 to 50 friends · the same amount every round" | Kuber puts that group of friends into one app. Five to fifty people save the same amount every round. |
+| 2.2 | The pot moves into a box marked "contract" | A contract holds the pot, and it moves money only the way the circle's rules allow. |
+| 2.3 | One dot gets a "fund manager" tag; the pot splits into cash, loans and investments; a vote bar fills | The friend who is good at investing can run the money plan. The circle votes them in as fund manager, they propose where the pot goes, and every change still needs a vote. |
+| 2.4 | A savings bar of 300 with 270 lit; a second bar of 80 attaches, marked "a friend's backing" | You can borrow up to ninety percent of your own savings without a backer. For more than that, a friend backs the extra with their savings, and earns interest for taking the risk. |
+| 2.5 | A backing card: "You could lose up to 80 · You earn 6.40" | Before they agree, they see what they could lose and what they will earn. |
+| 2.6 | Six dots: one red, two amber, three green with a 0 | If a borrower stops paying, their own savings cover the loss first and their backers cover the rest. A member who backed nobody loses nothing to that default. |
+
+### Part 3. Where it is needed
+| # | On screen | Voiceover |
+|---|---|---|
+| 3.1 | "For any group that trusts each other with money" | Kuber is for any group that already trusts each other with money. |
+| 3.2 | Two friends and a calendar with a payday circled | Friends who cover each other between paychecks. |
+| 3.3 | A set of house keys | Flatmates saving for a deposit. |
+| 3.4 | One desk with a chart on screen, others leaning in | Colleagues who follow one person's investing tips. |
+| 3.5 | A map with three pins joined by lines | A family spread across countries. |
+| 3.6 | Four name tags: chit fund · tanda · susu · stokvel | And community savings groups, known as chit funds, tandas, susus or stokvels, depending on where you live. |
+| 3.7 | The app's sign-in screen | None of them needs to know anything about crypto. You sign in with an email, and the app makes the wallet. |
+
+### Part 4. Getting started
+| # | Screen | Tap | Voiceover |
 |---|---|---|---|
-| S1 | What is Kuber? | Motion graphics | 24 s |
-| S2 | Start | Phone | 16 s |
-| S3 | Chapter 1: Join and save | Phone | 24 s |
-| S4 | Chapter 2: Borrow | Phone | 28 s |
-| S5 | Chapter 3: Repay | Phone | 20 s |
-| S6 | Chapter 4: Vote | Phone | 16 s |
-| S7 | Chapter 5: A member stops paying | Phone + graphic | 32 s |
-| S8 | Chapter 6: Share-out | Phone + graphic | 24 s |
-| S9 | Close | Phone + outro | 12 s |
+| 4.1 | Welcome: "Save your money together." | Sign in | Open Kuber and sign in with your email. The app creates a wallet for you on Avalanche's test network. |
+| 4.2 | Choose a name, then "Verify me (test only)", then the 20,000 test mUSDC notice | Continue, Verify | Pick a name, tap Verify, and twenty thousand in test money arrives. |
+| 4.3 | The "test money, no real ID" note | — | Nothing here is real money, and no real ID is needed. |
 
-## 3. Clips
-
-### S1. What is Kuber? (24 s)
-| Time | On screen | Visual | Voiceover |
+### Part 5. Learning it in a practice circle
+| # | Screen | Tap | Voiceover |
 |---|---|---|---|
-| 0–4 s | "Your savings group runs on trust." | A paper ledger page with names and tick marks, already on screen at frame 0 | People everywhere save together in groups. It all runs on trust, and a notebook. |
-| 4–8 s | "The organiser can run off." | The pot total counts down to 0; the organiser's row is struck out | But the organiser can run off with the pot. |
-| 8–12 s | "The money sits idle." | The pot sits still; an "earned" counter stays at 0 | The money just sits there, earning nothing. |
-| 12–16 s | "One default hurts everyone." | Six dots; one turns red, then all six dim | And when one person doesn't repay, everybody pays for it. |
-| 16–20 s | "Kuber" | The ledger folds away; the wordmark lands on the beat | Kuber is a savings circle where the rules hold the money, not a person. |
-| 20–24 s | "Don't back anyone. Lose nothing to a default." | The same six dots: one red, two amber backers, three stay green | And if you don't back anyone, nobody else's default can touch your savings. |
+| 5.0 | The "Tutorial mode" bar; the practice circle with six members | — | New accounts start in tutorial mode. You get a practice circle with five members the app runs: Bala, Chitra, Dev, Esha and Farhan. Every step you take is a real transaction against the real Kuber contracts, on a private practice chain. |
+| 5.1a | Chapter 1, "Join or create a circle"; then "Create your circle" | Create a circle, Create the circle | Chapter one is joining and saving. You can join Bala's circle, or create your own and invite the other five. |
+| 5.1b | "Allow your savings", then rounds 1 and 2 closing; savings 100, then 200 | Allow, Continue | You give the circle permission to collect your savings, one round at a time. Each round, all six members put in 100, and the circle collects it when the round closes. |
+| 5.1c | "Your money at work": the pot split into cash, ready to lend, and invested | Continue | After two rounds the pot is working. Some is kept as cash, some is ready to lend, and the rest is invested. |
+| 5.2a | Chapter 2, "Save round 3 early" | Pay 100 now | Chapter two is borrowing. You need three rounds of savings to borrow, so you pay round three early. |
+| 5.2b | "Ask for a loan": 350 = 270 from your savings + 80 backed by Bala | Ask for 350 | Then you ask for 350. 270 can come from your own 300 in savings. The other 80 needs a backer, so Bala puts 80 of his savings on hold for your loan, and you pay him eight percent for it. |
+| 5.2c | "Your loan is ready", then "Take your loan"; the wallet goes up by 350 | Take 350 | When the round closes the loan is ready, and you move 350 into your wallet. |
+| 5.2d | Loans: Dev, 350, backed by Chitra and Esha | — | Dev borrows 350 in the same round, backed by Chitra and Esha. |
+| 5.3 | Chapter 3, "Repay, part 1" and "Repay, part 2"; then "Loan repaid" | Pay, Pay | Chapter three is repaying. You pay the loan back over two rounds, together with your normal savings. After the second payment the loan is closed. Bala earns 6.40 for backing you, and his 80 is free again. |
+| 5.4 | Chapter 4, "Vote on a rule"; then "The vote passed" | Vote yes | Chapter four is voting. Bala suggests lowering the fee for leaving the circle early from three percent to two. It passes if more than half of the six members vote yes. You vote, it passes, and the new rule starts when the round closes. |
+| 5.5a | Chapter 5, "Dev stops paying"; Dev's row marked behind | Continue | Chapter five is a member who stops paying. Dev borrowed 350 and has paid nothing back. |
+| 5.5b | "Dev's loan was covered"; a bar of 350 fills: Dev 300, Chitra 30, Esha 20 | — | When the last round closes, the circle takes what he owes from his own savings first, which covers 300. Chitra vouched for him, so she covers the next 30. Esha backed him second, so she covers the last 20. |
+| 5.5c | You, Bala and Farhan with "lost 0"; Dev's debt of 106.75 | — | You, Bala and Farhan did not back Dev, and you lose nothing. Dev leaves owing 106.75, and he can't join another circle until he pays it. |
+| 5.6a | Chapter 6, "Collect your share-out"; then "Everyone was paid out" | Collect my share-out | Chapter six is the share-out. The circle has ended. Your share is your savings plus your part of what the circle earned, which is the interest paid on loans and 60 from investments. |
+| 5.6b | Your payout, 712.04; then Farhan +14.08 and Bala +20.48; then Chitra −16.07 and Esha −6.02 | — | You collect 712. Farhan only saved, and he ends 14 ahead. Bala backed a loan that was repaid, and he ends 20 ahead. Chitra and Esha backed the loan that wasn't, and they end 16 and 6 behind. |
 
-### S2. Start (16 s)
-| Time | Screen | Tap | Voiceover |
+### Part 6. The real app
+The wording here is matched to the finished screens when recording.
+
+| # | Screen | Tap | Voiceover |
 |---|---|---|---|
-| 0–4 s | The Start screen | Start | Open Kuber and tap Start. A wallet is made for you in the background. |
-| 4–8 s | Choose a name: "Alice" | Continue | Pick a name. |
-| 8–12 s | "20,000 test mUSDC added" | — | You get twenty thousand in test money to play with. |
-| 12–16 s | The practice circle opens; the guide lists six chapters | — | And a practice circle opens, with five members waiting for you. |
+| 6.1 | "You did it", then Home | Continue | When the tutorial ends you are in the real app, on Avalanche's Fuji test network. |
+| 6.2 | Create a circle: name, saving per round, number of rounds, round length | Create a circle | To create a circle, you give it a name, the amount each person saves per round, the number of rounds, and how long a round lasts. Creating it is one transaction. |
+| 6.3 | The circle page, forming: share link, countdown; a second phone opens the link and joins | Share, Join | Share the link with your friends. Each of them signs in, opens the circle and joins. The circle starts once five people are in. |
+| 6.4 | "Add practice members"; four labelled practice members appear | Add practice members | If you are trying it alone, add practice members and the app fills the seats. |
+| 6.5 | The active circle: Save now, Borrow, Back a loan request, Repay, Vote, Propose, Leave | Save now | From then on it works like the tutorial, in real time. You save, borrow, back a friend's loan, repay, vote, propose a rule change, or leave. |
+| 6.6 | A result message with its explorer link; the transaction page on Snowtrace | Open the link | Every action is a transaction from your own wallet, and each one links to the public explorer, where anyone can check it. |
 
-### S3. Chapter 1: Join and save (24 s)
-| Time | Screen | Tap | Voiceover |
-|---|---|---|---|
-| 0–6 s | Guide step "Join the circle" | Join the circle | Chapter one. Join the circle. Every step is a real transaction with the real Kuber contracts. |
-| 6–12 s | Rounds 1 to 3 close; your savings go 100, 200, 300 | Continue | Everyone saves 100 a round. Three rounds in, you've saved 300. |
-| 12–18 s | The pot: total 1,800, split into cash, invested and lent | — | Six members, so the pot is 1,800. It doesn't sit idle: part is invested, part is kept ready for loans. |
-| 18–24 s | The "what changed" card with before and after numbers | — | After every step, a card shows exactly what changed. |
+### Part 7. What it fixes
+| # | On screen | Voiceover |
+|---|---|---|
+| 7.1 | The checklist from 1.4 returns | Back to the four problems. |
+| 7.2 | Line 1 is ticked | Nobody can leave with the pot, because a contract holds it. |
+| 7.3 | Line 2 is ticked | Nobody argues about who paid, because every payment is a public transaction. |
+| 7.4 | Line 3 is ticked | The money earns between loans, because the circle invests it, led by the friend who knows how. |
+| 7.5 | Line 4 is ticked; the six dots, three of them green | And a default stops at the borrower and the people who chose to back them. |
 
-### S4. Chapter 2: Borrow (28 s)
-| Time | Screen | Tap | Voiceover |
-|---|---|---|---|
-| 0–6 s | Guide: borrow 350; your savings 300 | — | Chapter two. You need 350, but you can borrow only ninety percent of your own savings: 270. |
-| 6–12 s | The split: 270 from your savings, 80 backed by Bob | Request loan | The other 80 needs a friend. Bob vouches for you, and you offer him eight percent. |
-| 12–18 s | The round closes; the loan shows as funded; your wallet goes up by 350 | Continue | When the round closes, the loan is funded and 350 lands in your wallet. |
-| 18–24 s | Members: Bob, pledged 80 | — | Bob's 80 never leaves the pot. He pays only if you don't. |
-| 24–28 s | Loans: Dave, 350, backed by Cara and Erin | — | Dave borrows 350 too, backed by Cara and Erin. Remember that. |
+### Part 8. What this build is
+| # | On screen | Voiceover |
+|---|---|---|
+| 8.1 | "Proof of concept · test money · simulated investments" | This is a proof of concept, built for a hackathon. The money is test money and the investments are simulated. |
+| 8.2 | "The promise covers defaults." | The promise covers defaults. If the investments lose value, all the members share that loss. |
+| 8.3 | The factory contract address on Fuji | The contracts are deployed on Avalanche's Fuji test network. |
 
-### S5. Chapter 3: Repay (20 s)
-| Time | Screen | Tap | Voiceover |
-|---|---|---|---|
-| 0–6 s | Loan owed 364.50; first payment 182.25 | Pay | Chapter three. You owe 364.50: the loan plus interest. First payment, 182.25. |
-| 6–12 s | Second payment; loan owed 0 | Pay | Second payment, and the loan is closed. |
-| 12–20 s | Bob: earned 6.40, pledged 0 | — | Bob earns 6.40 for backing you, and his 80 is free again. |
+### Part 9. Close
+| # | On screen | Voiceover |
+|---|---|---|
+| 9.1 | The Kuber wordmark and "Save your money together." | Kuber. Save your money together. |
 
-### S6. Chapter 4: Vote (16 s)
-The proposal is whichever one the tutorial uses; the line is adjusted to it when recording.
-
-| Time | Screen | Tap | Voiceover |
-|---|---|---|---|
-| 0–6 s | A proposal card | Vote yes | Chapter four. The group runs the circle. A member proposes a change, and you vote. |
-| 6–12 s | The yes count passes half | Continue | More than half say yes. |
-| 12–16 s | The round closes; the change shows as applied | — | Like everything in Kuber, it takes effect when the round closes. |
-
-### S7. Chapter 5: A member stops paying (32 s)
-| Time | On screen | Visual | Voiceover |
-|---|---|---|---|
-| 0–4 s | Phone: Dave, 1 payment behind | Members list | Chapter five. Dave stops paying. One payment behind. |
-| 4–8 s | Phone: Dave, 2 behind | Members list | Two behind, with fines adding up. |
-| 8–12 s | Phone: Dave, paused | Members list | At three, he's paused, and his loan is settled on the spot. |
-| 12–16 s | "Dave owes 350 · his savings pay 300" | Graphic: a bar marked 350 fills to 300 | He owes 350. His own savings pay first: 300. |
-| 16–20 s | "Cara, voucher: 30" | The bar fills to 330 | Then Cara, who vouched for him, covers 30. |
-| 20–24 s | "Erin, agreer: 20" | The bar fills to 350 | Then Erin covers the last 20. |
-| 24–28 s | "You, Bob, Frank: 0" | Six dots: one red, two amber, three green with a 0 | You, Bob and Frank lose nothing. You never backed him. |
-| 28–32 s | Phone: Dave, debt 106.75 | Members list | And Dave leaves with a debt of 106.75 that follows him into every circle. |
-
-### S8. Chapter 6: Share-out (24 s)
-| Time | On screen | Visual | Voiceover |
-|---|---|---|---|
-| 0–6 s | Phone: the circle has ended; your payout breakdown; Withdraw | Tap Withdraw | Chapter six. The circle ends and everyone is paid out. |
-| 6–12 s | "You: 712.04" | Phone: your wallet goes up | You get 712.04. Borrowing cost you about two and a half. |
-| 12–18 s | "Frank +14.08 · Bob +20.48" | Graphic: two green bars | Frank only saved, and ends 14 ahead. Bob backed a good loan, and ends 20 ahead. |
-| 18–24 s | "Cara −16.07 · Erin −6.02" | Graphic: two amber bars beside the green ones | Cara and Erin backed a bad one, and paid for it. Nobody else did. |
-
-### S9. Close (12 s)
-| Time | Screen | Tap | Voiceover |
-|---|---|---|---|
-| 0–6 s | "You're ready", then the app's circle list | Continue | That's Kuber. Save together, and borrow with your friends' backing. |
-| 6–12 s | The Kuber wordmark. If the Fuji step is done: "Contracts deployed and verified on Avalanche Fuji" | — | And never pay for a default you didn't back. |
-
-## 4. Effects in this cut
-- The recording sits inside a phone frame; a ripple marks every tap; captions are burned in.
-- A chapter card opens each chapter clip.
-- The graphics in S7 and S8 use the same six dots as S1.
-- An original music track at 120 beats per minute, with cuts on the beat; the music drops under the voice.
-- Left for the full version: portraits and illustrations from Codex, and the push-in on key numbers.
-
-## 5. Where the numbers come from
-SPEC §4 and SPRINT.md "End numbers": payouts are 712.043010 (you), 720.477090 (Bob), 683.926264 (Cara), 693.976540 (Erin), 714.077090 (Frank), and 0 for Dave with an open debt of 106.749998. Each member paid in 700, except Dave. If the vote chapter changes the payouts, S8 uses the numbers the app shows.
-
-## 6. What it needs
-| Need | When |
+## 4. Where the numbers come from
+| Number | Source |
 |---|---|
-| The sprint app working end to end (`pnpm dev`) | Before recording |
-| The app's colours and fonts, taken from `apps/web` | Before the S1, S7 and S8 graphics are final |
-| An AI voice tool and its API key | Before the voice is generated |
-| The submission's video rules (length limit, shape) | Before the final render |
+| "Lends 200" in Part 1 | An example amount, not a statistic |
+| 350, 270, 80, 8%, 6.40, 300, 30, 20, 60 | SPEC §4 worked example and the tutorial's own step text (`services/dev-api/src/tutorial.ts`) |
+| 712.04, +14.08, +20.48, −16.07, −6.02, debt 106.75 | SPRINT.md "End numbers" and SPEC §4 payout table. The video uses whatever the app shows if it differs. |
+| 5 to 50 members, 90% borrow limit, 3% early-exit fee | PRD §6 |
+
+## 5. What it needs
+| Need | Status |
+|---|---|
+| Tutorial mode working end to end | Built; record once the screens stop changing |
+| The real app on Fuji: create, share link, join, practice members, actions with explorer links | In progress (REAL-APP.md); Part 6 depends on it |
+| Fund manager (Part 2.3) | In the contracts and their tests. It is not on the app's screens today, so the video shows it as a graphic, not a recording |
+| Indian names in the app: Bala, Chitra, Dev, Esha, Farhan | The script and the voice use them. The app still shows Bob, Cara, Dave, Erin and Frank (6 files, about 120 mentions) and must be renamed before recording |
+| Narration audio | Voice approved; the clips are made with `~/voice/kuber/make.sh` |
+| The submission's video rules (length limit, shape) | Not known yet |

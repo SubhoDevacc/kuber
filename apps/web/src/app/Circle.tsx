@@ -1,11 +1,18 @@
 import { kuberCircleAbi, mockUsdcAbi } from "@kuber/shared";
-import { ChevronDown, Clock, ExternalLink, Lock, Share2 } from "lucide-react";
+import {
+  Briefcase,
+  ChevronDown,
+  Clock,
+  ExternalLink,
+  Lock,
+  Share2,
+} from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { type Abi, encodeAbiParameters } from "viem";
 import { CircleView } from "../components/CircleView";
 import { Button, Section } from "../components/ui";
 import { formatAmount, isZero } from "../lib/money";
-import type { Hex } from "../types";
+import type { Hex, Manager, MoneyPlan } from "../types";
 import { ActivityList } from "./Activity";
 import {
   type ActivityItem,
@@ -15,6 +22,16 @@ import {
 } from "./appApi";
 import { useApp } from "./ctx";
 import { InvitePeople, shareCircle } from "./Invite";
+import { MoneyPlanScreen, PlanBar } from "./MoneyPlan";
+import {
+  backingRisk,
+  encodeManager,
+  KIND,
+  pctToBps,
+  planLine,
+  rateToBps,
+  ZERO_ADDRESS,
+} from "./plan";
 import { AppBar, type Go, Page } from "./Screens";
 import { type Send, TxSteps, useTx } from "./TxStatus";
 
@@ -58,11 +75,98 @@ const RULE_FIELDS = [
   { field: 5, label: "Fine for a late saving" },
   { field: 6, label: "Fine for a late repayment" },
   { field: 0, label: "Share of your savings you can borrow" },
+  { field: 8, label: "Fund manager's fee (up to 10%)" },
 ];
+
+const same = (a?: string | null, b?: string | null) =>
+  !!a && !!b && a.toLowerCase() === b.toLowerCase();
+
+/**
+ * The manager and the money plan come from the server; an older server that does not send them is read from the
+ * chain instead (`getCircleState`), once per round.
+ */
+function useChainExtras(c: AppCircleDetail | null) {
+  const { reader } = useApp();
+  const need =
+    !!c &&
+    c.status !== "Forming" &&
+    (c.manager === undefined || !(c.plan ?? c.live.plan?.current));
+  const [state, setState] = useState<{
+    manager: Hex;
+    plan: MoneyPlan;
+  } | null>(null);
+  const address = c?.address;
+  const round = c?.round;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-read when a round closes (the plan and manager change then)
+  useEffect(() => {
+    if (!need || !address) return;
+    let live = true;
+    reader
+      .readContract({
+        address,
+        abi: circleAbi,
+        functionName: "getCircleState",
+      })
+      .then((s) => {
+        const st = s as {
+          manager: Hex;
+          rules: { alloc: MoneyPlan };
+        };
+        const a = st.rules.alloc;
+        if (live)
+          setState({
+            manager: st.manager,
+            plan: {
+              loan: Number(a.loan),
+              aave: Number(a.aave),
+              lp: Number(a.lp),
+              cash: Number(a.cash),
+            },
+          });
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [need, address, round, reader]);
+  if (!c) return null;
+  const fromChain: Manager | null | undefined = state
+    ? state.manager === ZERO_ADDRESS
+      ? null
+      : {
+          address: state.manager,
+          name:
+            c.members.find((m) => same(m.address, state.manager))?.name ??
+            "A member",
+        }
+    : undefined;
+  const manager = c.manager !== undefined ? c.manager : fromChain;
+  const inv = c.live.investments;
+  const merged: AppCircleDetail = {
+    ...c,
+    manager,
+    plan: c.plan ?? c.live.plan?.current ?? state?.plan,
+    pot: inv
+      ? {
+          ...c.pot,
+          aaveEarned: inv.aave?.earnedThisRound,
+          lpChange: inv.lp?.changeThisRound,
+          note: inv.note,
+        }
+      : c.pot,
+    members: c.members.map((m) => ({
+      ...m,
+      isManager: m.isManager ?? same(m.address, manager?.address),
+    })),
+  };
+  return merged;
+}
 
 export function CirclePage({ address, go }: { address: Hex; go: Go }) {
   const { chain } = useApp();
-  const [c, setC] = useState<AppCircleDetail | null>(null);
+  const [raw, setC] = useState<AppCircleDetail | null>(null);
+  const c = useChainExtras(raw);
+  const [planOpen, setPlanOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activity, setActivity] = useState<ActivityItem[] | null>(null);
 
@@ -113,11 +217,33 @@ export function CirclePage({ address, go }: { address: Hex; go: Go }) {
             <span className="sr-only">Loading the circle</span>
           </div>
         )}
-        {c && (
+        {c && planOpen && c.plan && (
+          <MoneyPlanScreen
+            circle={address}
+            current={c.plan}
+            names={names}
+            onBack={() => {
+              setPlanOpen(false);
+              window.scrollTo({ top: 0 });
+            }}
+            onSent={load}
+          />
+        )}
+        {c && !(planOpen && c.plan) && (
           <div className="grid gap-4">
             <CircleView
               c={c}
-              top={<Actions c={c} reload={load} names={names} />}
+              top={
+                <Actions
+                  c={c}
+                  reload={load}
+                  names={names}
+                  openPlan={() => {
+                    setPlanOpen(true);
+                    window.scrollTo({ top: 0 });
+                  }}
+                />
+              }
             />
             <Section title="Activity">
               <ActivityList
@@ -155,6 +281,13 @@ export function CirclePage({ address, go }: { address: Hex; go: Go }) {
   );
 }
 
+/** The smaller of two amounts (bigint, so not Math.min). */
+const smaller = (a: bigint, b: bigint) =>
+  [a, b].sort((x, y) => (x < y ? -1 : 1))[0];
+
+/** 800 → "8%". */
+const pctOf = (bps: number) => `${Number((bps / 100).toFixed(2))}%`;
+
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="rounded-xl border border-line p-3">
@@ -168,10 +301,12 @@ function Actions({
   c,
   reload,
   names,
+  openPlan,
 }: {
   c: AppCircleDetail;
   reload: () => Promise<void>;
   names: Record<string, string>;
+  openPlan: () => void;
 }) {
   const { chain, reader, signer, me, refreshMe } = useApp();
   const live = c.live;
@@ -187,6 +322,13 @@ function Actions({
   const [amount, setAmount] = useState("");
   const [repayIn, setRepayIn] = useState(2);
   const [backAmounts, setBackAmounts] = useState<Record<number, string>>({});
+  const [backTier, setBackTier] = useState<Record<number, "vouch" | "agree">>(
+    {},
+  );
+  const [offerPct, setOfferPct] = useState(
+    String((you.offeredRateBps ?? 800) / 100),
+  );
+  const [managerPick, setManagerPick] = useState<string>("");
   const [ruleField, setRuleField] = useState(7);
   const [ruleValue, setRuleValue] = useState("2");
   const [formError, setFormError] = useState<string | null>(null);
@@ -243,6 +385,76 @@ function Actions({
   );
   const openVotes = live.proposals.filter((p) => p.open);
   const claimable = c.you ? BigInt(c.you.claimable || "0") : 0n;
+
+  // The fund manager (ProposalKind.Manager) and the money plan (ProposalKind.Allocation).
+  const manager = c.manager ?? null;
+  const meIsManager = you.isManager ?? same(manager?.address, signer.address);
+  const managerMember = manager
+    ? c.members.find((m) => same(m.address, manager.address))
+    : undefined;
+  const practiceManager =
+    !!manager &&
+    !meIsManager &&
+    (live.canAskManagerPlan ??
+      (!!managerMember?.practice ||
+        /practice member/i.test(
+          `${managerMember?.role ?? ""} ${manager.name}`,
+        )));
+  const askLabel = manager
+    ? (live.askManagerPlanLabel ??
+      `Ask ${manager.name} to propose a new money plan`)
+    : "";
+  const canPlan =
+    you.canProposePlan ??
+    ((you.canPropose ?? true) && (!manager || meIsManager));
+  const planNote =
+    live.planNote ??
+    (manager && !meIsManager
+      ? `Only the fund manager, ${manager.name}, can suggest a new money plan. Everyone still votes on it.`
+      : null);
+  const candidates = (
+    live.managerCandidates ??
+    c.members.filter(
+      (m) =>
+        !same(m.address, manager?.address) &&
+        !/paus|left|removed|kicked|leaving/i.test(m.status),
+    )
+  ).map((m) => ({
+    address: m.address,
+    name: m.name,
+    you: same(m.address, signer.address),
+  }));
+  const canProposeManager =
+    you.canProposeManager ?? ((you.canPropose ?? true) && !meIsManager);
+  const canRemoveManager =
+    you.canRemoveManager ??
+    (!!manager && !meIsManager && (you.canPropose ?? true));
+  const pick =
+    candidates.find((m) => same(m.address, managerPick)) ??
+    candidates.find((m) => !m.you) ??
+    candidates[0];
+  const pickName = (m: { you: boolean; name: string }) =>
+    m.you ? "yourself" : m.name;
+
+  // Borrowing: the interest offered to backers (contract: at most 30%) and what a backer would earn.
+  const maxOffer = you.rateLimits?.maxBps ?? 3_000;
+  const offerBps = (() => {
+    const v = pctToBps(offerPct);
+    return v !== null && v <= maxOffer ? v : null;
+  })();
+  const borrowAsk = toBase(amount);
+  const backedPart =
+    borrowAsk !== null && you.ownLimit
+      ? borrowAsk > BigInt(you.ownLimit)
+        ? borrowAsk - BigInt(you.ownLimit)
+        : 0n
+      : null;
+  const borrowNote =
+    borrowAsk === null || backedPart === null || offerBps === null
+      ? null
+      : backedPart === 0n
+        ? "Your own savings cover this, so no backer is needed."
+        : `${formatAmount(backedPart)} needs backers. A backer of all of it could lose up to ${formatAmount(backedPart)} · earns ${formatAmount(backingRisk(backedPart, offerBps).wouldEarn)} (${pctOf(offerBps)}).`;
 
   return (
     <section
@@ -560,6 +772,10 @@ function Actions({
                       return setFormError(
                         `You can ask for up to ${formatAmount(limit)} mUSDC.`,
                       );
+                    if (offerBps === null)
+                      return setFormError(
+                        `Enter the interest you offer backers: 0% to ${pctOf(maxOffer)}.`,
+                      );
                     setFormError(null);
                     tx.run(async (send) => {
                       await send(
@@ -567,7 +783,7 @@ function Actions({
                         call("requestLoan", [
                           a,
                           BigInt(Math.min(repayIn, maxRepay)),
-                          BigInt(you.offeredRateBps ?? 800),
+                          BigInt(offerBps),
                           0n,
                         ]),
                       );
@@ -602,7 +818,7 @@ function Actions({
                       id="borrow-rounds"
                       value={repayIn}
                       onChange={(e) => setRepayIn(Number(e.target.value))}
-                      className="min-h-12 rounded-xl border border-line bg-surface px-3 text-base text-ink"
+                      className="min-h-12 w-full min-w-0 rounded-xl border border-line bg-surface px-3 text-base text-ink"
                     >
                       {[1, 2, 3]
                         .filter((n) => n <= maxRepay)
@@ -613,6 +829,29 @@ function Actions({
                         ))}
                     </select>
                   </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <label
+                      className="text-sm text-ink-2"
+                      htmlFor="borrow-offer"
+                    >
+                      Interest you offer backers (0–{pctOf(maxOffer)})
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        id="borrow-offer"
+                        inputMode="decimal"
+                        value={offerPct}
+                        onChange={(e) => setOfferPct(e.target.value)}
+                        className="num block min-h-11 w-20 rounded-xl border border-line bg-surface px-3 text-right text-base text-ink"
+                      />
+                      <span className="text-ink-2">%</span>
+                    </div>
+                  </div>
+                  {borrowNote && (
+                    <p className="text-sm text-ink-2" aria-live="polite">
+                      {borrowNote}
+                    </p>
+                  )}
                   <Button
                     type="submit"
                     variant="secondary"
@@ -637,72 +876,216 @@ function Actions({
                 You earn interest when they repay; if they stop paying, your
                 backing helps cover it.
               </p>
-              {others.map((r) => (
-                <div key={r.id} className="rounded-lg bg-paper p-2.5">
-                  <p className="text-sm text-ink">
-                    <span className="font-semibold">{r.borrower}</span> asks for{" "}
-                    <span className="num">{formatAmount(r.amount)}</span>; needs{" "}
-                    <span className="num font-semibold">
-                      {formatAmount(r.needsBacking)}
-                    </span>{" "}
-                    more backing.
-                  </p>
-                  {r.canBack !== false && (
-                    <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
-                      <label className="sr-only" htmlFor={`back-${r.id}`}>
-                        Amount to back
-                      </label>
-                      <input
-                        id={`back-${r.id}`}
-                        inputMode="decimal"
-                        placeholder={formatAmount(r.needsBacking).replace(
-                          /,/g,
-                          "",
-                        )}
-                        value={backAmounts[r.id] ?? ""}
-                        onChange={(e) =>
-                          setBackAmounts((b) => ({
-                            ...b,
-                            [r.id]: e.target.value,
-                          }))
+              {others.map((r) => {
+                const rateBps = r.rateBps ?? rateToBps(r.rate);
+                const cap = BigInt(r.maxBack ?? r.needsBacking);
+                const need = BigInt(r.needsBacking);
+                const tier = backTier[r.id] ?? "vouch";
+                const server = tier === "agree" ? r.ifYouAgree : r.ifYouBack;
+                const fallback = smaller(
+                  tier === "agree" ? contribution : need,
+                  cap,
+                );
+                const suggested = server ? BigInt(server.amount) : fallback;
+                const typed = backAmounts[r.id] ?? "";
+                const amount = typed ? toBase(typed) : suggested;
+                // The server's numbers for its suggested amount; the contract's formula for anything typed.
+                const risk =
+                  amount === null
+                    ? null
+                    : server && amount === BigInt(server.amount)
+                      ? {
+                          couldLose: BigInt(server.couldLose),
+                          wouldEarn: BigInt(server.wouldEarn),
                         }
-                        className="num block min-h-11 w-full min-w-0 rounded-xl border border-line bg-surface px-3 text-base text-ink"
-                      />
-                      <Button
-                        variant="secondary"
-                        className="min-h-11"
-                        busy={tx.busy}
-                        disabled={tx.busy}
-                        onClick={() => {
-                          const raw =
-                            backAmounts[r.id] ||
-                            formatAmount(r.needsBacking).replace(/,/g, "");
-                          const a = toBase(raw);
-                          if (a === null)
-                            return setFormError("Enter an amount to back.");
-                          const cap = BigInt(r.maxBack ?? r.needsBacking);
-                          if (a > cap)
-                            return setFormError(
-                              `You can back ${r.borrower} with up to ${formatAmount(cap)} mUSDC.`,
-                            );
-                          setFormError(null);
-                          tx.run(async (send) => {
-                            await send(
-                              `Back ${r.borrower}'s loan with ${formatAmount(a)} mUSDC`,
-                              call("vouch", [BigInt(r.id), a]),
-                            );
-                            return `You backed ${r.borrower}.`;
-                          });
-                        }}
-                      >
-                        Back
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ))}
+                      : backingRisk(amount, rateBps, tier);
+                return (
+                  <div
+                    key={r.id}
+                    className="grid gap-2 rounded-lg bg-paper p-2.5"
+                  >
+                    <p className="text-sm text-ink">
+                      <span className="font-semibold">{r.borrower}</span> asks
+                      for <span className="num">{formatAmount(r.amount)}</span>{" "}
+                      at {pctOf(rateBps)} for backers; needs{" "}
+                      <span className="num font-semibold">
+                        {formatAmount(r.needsBacking)}
+                      </span>{" "}
+                      more backing.
+                    </p>
+                    {r.canBack !== false && (
+                      <>
+                        <fieldset className="grid grid-cols-2 gap-2">
+                          <legend className="sr-only">How to back</legend>
+                          {(
+                            [
+                              [
+                                "vouch",
+                                "Vouch",
+                                "Covers first, earns the full rate",
+                              ],
+                              ["agree", "Agree", "Covers second, earns half"],
+                            ] as const
+                          )
+                            .filter(
+                              ([v]) => v === "vouch" || r.canAgree !== false,
+                            )
+                            .map(([value, title, line]) => (
+                              <label
+                                key={value}
+                                className={`flex min-h-11 cursor-pointer flex-col justify-center rounded-lg border px-2.5 py-1.5 text-sm ${tier === value ? "border-brand bg-brand-soft" : "border-line bg-surface"}`}
+                              >
+                                <span className="flex items-center gap-1.5 font-semibold text-ink">
+                                  <input
+                                    type="radio"
+                                    name={`tier-${r.id}`}
+                                    value={value}
+                                    checked={tier === value}
+                                    onChange={() =>
+                                      setBackTier((t) => ({
+                                        ...t,
+                                        [r.id]: value,
+                                      }))
+                                    }
+                                    className="accent-[var(--color-brand)]"
+                                  />
+                                  {title}
+                                </span>
+                                <span className="text-xs text-ink-2">
+                                  {line}
+                                </span>
+                              </label>
+                            ))}
+                        </fieldset>
+                        <div className="grid grid-cols-[1fr_auto] gap-2">
+                          <label className="sr-only" htmlFor={`back-${r.id}`}>
+                            Amount to back
+                          </label>
+                          <input
+                            id={`back-${r.id}`}
+                            inputMode="decimal"
+                            placeholder={formatAmount(suggested).replace(
+                              /,/g,
+                              "",
+                            )}
+                            value={typed}
+                            onChange={(e) =>
+                              setBackAmounts((b) => ({
+                                ...b,
+                                [r.id]: e.target.value,
+                              }))
+                            }
+                            className="num block min-h-11 w-full min-w-0 rounded-xl border border-line bg-surface px-3 text-base text-ink"
+                          />
+                          <Button
+                            variant="secondary"
+                            className="min-h-11"
+                            busy={tx.busy}
+                            disabled={tx.busy}
+                            onClick={() => {
+                              const a = amount;
+                              if (a === null)
+                                return setFormError("Enter an amount to back.");
+                              if (a > cap)
+                                return setFormError(
+                                  `You can back ${r.borrower} with up to ${formatAmount(cap)} mUSDC.`,
+                                );
+                              if (tier === "agree" && a > contribution)
+                                return setFormError(
+                                  `With "Agree" you can put in up to one round's saving: ${formatAmount(contribution)} mUSDC.`,
+                                );
+                              setFormError(null);
+                              tx.run(async (send) => {
+                                await send(
+                                  `${tier === "agree" ? "Agree to back" : "Back"} ${r.borrower}'s loan with ${formatAmount(a)} mUSDC`,
+                                  call(tier, [BigInt(r.id), a]),
+                                );
+                                setBackAmounts((b) => ({ ...b, [r.id]: "" }));
+                                return `You backed ${r.borrower}. You earn your interest as they repay.`;
+                              });
+                            }}
+                          >
+                            Back
+                          </Button>
+                        </div>
+                        {risk && (
+                          <p
+                            className="rounded-lg border border-line bg-surface px-2.5 py-2 text-sm font-semibold text-ink"
+                            aria-live="polite"
+                          >
+                            You could lose up to{" "}
+                            <span className="num text-bad">
+                              {formatAmount(risk.couldLose)}
+                            </span>{" "}
+                            · You earn{" "}
+                            <span className="num text-good">
+                              {formatAmount(risk.wouldEarn)}
+                            </span>
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </Panel>
           )}
+
+          <Panel title="Money plan">
+            {c.plan ? (
+              <>
+                <PlanBar plan={c.plan} />
+                <p className="text-sm text-ink">{planLine(c.plan)}</p>
+              </>
+            ) : (
+              <p className="text-sm text-ink-2">Reading the plan…</p>
+            )}
+            {planNote && <p className="text-sm text-ink-2">{planNote}</p>}
+            {practiceManager && manager && (
+              <>
+                {live.managerPreset && (
+                  <p className="text-sm text-ink-2">
+                    {manager.name} will suggest a new plan.{" "}
+                    {live.managerPresetNote ??
+                      `${planLine(live.managerPreset)}.`}
+                  </p>
+                )}
+                <Button
+                  variant="secondary"
+                  busy={tx.busy}
+                  disabled={tx.busy}
+                  onClick={() =>
+                    tx.run(async () => {
+                      tx.setNote(
+                        `${manager.name} is sending the proposal from their own practice wallet…`,
+                      );
+                      await appApi.practicePlan(circle);
+                      // The server answers once the practice manager's transaction is in; show it like any other.
+                      const act = await appApi
+                        .activity(circle)
+                        .catch(() => [] as ActivityItem[]);
+                      const sent = act.find(
+                        (a) => a.who === manager.name && /propos/i.test(a.what),
+                      );
+                      if (sent)
+                        await tx.record(
+                          `${manager.name} proposed a new money plan`,
+                          sent.txHash,
+                        );
+                      return `${manager.name} proposed a new money plan. Vote on it under Votes; if more than half say yes, it applies when the round closes.`;
+                    })
+                  }
+                >
+                  {askLabel}
+                </Button>
+              </>
+            )}
+            {canPlan && c.plan && (
+              <Button variant="secondary" onClick={openPlan}>
+                Change the money plan
+              </Button>
+            )}
+          </Panel>
 
           {openVotes.length > 0 && (
             <Panel title="Votes">
@@ -755,23 +1138,113 @@ function Actions({
             </Panel>
           )}
 
+          {!(you.canPropose ?? true) && you.proposeReason && (
+            <p className="text-sm text-ink-2">{you.proposeReason}</p>
+          )}
           {(you.canPropose ?? true) && (
             <details className="group rounded-xl border border-line">
               <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between px-3 font-semibold text-ink">
-                Suggest a rule change
+                Suggest a change
                 <ChevronDown
                   aria-hidden
                   className="size-5 text-ink-2 transition-transform group-open:rotate-180"
                 />
               </summary>
+              <div className="grid gap-2 border-b border-line px-3 pb-3">
+                <h4 className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+                  <Briefcase aria-hidden className="size-4 text-brand" />
+                  Fund manager
+                </h4>
+                <p className="text-sm text-ink-2">
+                  The fund manager suggests how the pot is invested; everyone
+                  still votes on every plan.{" "}
+                  {manager
+                    ? `Now: ${manager.name}.`
+                    : "The circle has none yet."}
+                </p>
+                {meIsManager ? (
+                  <p className="text-sm text-ink">
+                    You're the fund manager, so the others vote on any change of
+                    manager.
+                  </p>
+                ) : (
+                  <>
+                    {canProposeManager && candidates.length > 0 && pick && (
+                      <>
+                        <label
+                          className="text-sm text-ink-2"
+                          htmlFor="manager-pick"
+                        >
+                          Member
+                        </label>
+                        <select
+                          id="manager-pick"
+                          value={pick.address}
+                          onChange={(e) => setManagerPick(e.target.value)}
+                          className="min-h-12 w-full min-w-0 rounded-xl border border-line bg-surface px-3 text-base text-ink"
+                        >
+                          {candidates.map((m) => (
+                            <option key={m.address} value={m.address}>
+                              {m.you ? `${m.name} (you)` : m.name}
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          variant="secondary"
+                          busy={tx.busy}
+                          disabled={tx.busy}
+                          onClick={() =>
+                            tx.run(async (send) => {
+                              await send(
+                                `Suggest ${pick.you ? "yourself" : pick.name} as fund manager`,
+                                call("propose", [
+                                  KIND.Manager,
+                                  encodeManager(pick.address),
+                                ]),
+                              );
+                              return `Suggested. Everyone votes this round; if more than half say yes, ${pick.you ? "you become" : `${pick.name} becomes`} the fund manager when the round closes.`;
+                            })
+                          }
+                        >
+                          Make {pickName(pick)} the fund manager
+                        </Button>
+                      </>
+                    )}
+                    {manager && canRemoveManager && (
+                      <Button
+                        variant="quiet"
+                        disabled={tx.busy}
+                        onClick={() =>
+                          tx.run(async (send) => {
+                            await send(
+                              `Suggest removing ${manager.name} as fund manager`,
+                              call("propose", [
+                                KIND.Manager,
+                                encodeManager(ZERO_ADDRESS),
+                              ]),
+                            );
+                            return `Suggested. If more than half vote yes, ${manager.name} stops being the fund manager when the round closes.`;
+                          })
+                        }
+                      >
+                        Remove the fund manager
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
               <form
                 noValidate
-                className="grid gap-2 px-3 pb-3"
+                className="grid gap-2 px-3 pt-3 pb-3"
                 onSubmit={(e) => {
                   e.preventDefault();
                   const pct = Number(ruleValue);
                   if (!/^\d+(\.\d{1,2})?$/.test(ruleValue) || pct > 100)
                     return setFormError("Enter a percent from 0 to 100.");
+                  if (ruleField === 8 && pct > 10)
+                    return setFormError(
+                      "The fund manager's fee can be at most 10%.",
+                    );
                   setFormError(null);
                   const bps = BigInt(Math.round(pct * 100));
                   const label =
@@ -781,7 +1254,7 @@ function Actions({
                     await send(
                       `Suggest: ${label} → ${pct}%`,
                       call("propose", [
-                        0,
+                        KIND.Rule,
                         encodeAbiParameters(
                           [{ type: "uint8" }, { type: "uint256" }],
                           [ruleField, bps],
@@ -792,6 +1265,7 @@ function Actions({
                   });
                 }}
               >
+                <h4 className="text-sm font-semibold text-ink">A rule</h4>
                 <label className="text-sm text-ink-2" htmlFor="rule-field">
                   Rule
                 </label>
@@ -799,7 +1273,7 @@ function Actions({
                   id="rule-field"
                   value={ruleField}
                   onChange={(e) => setRuleField(Number(e.target.value))}
-                  className="min-h-12 rounded-xl border border-line bg-surface px-3 text-base text-ink"
+                  className="min-h-12 w-full min-w-0 rounded-xl border border-line bg-surface px-3 text-base text-ink"
                 >
                   {RULE_FIELDS.map((f) => {
                     const now = live.rules?.find((r) => r.field === f.field);

@@ -46,14 +46,20 @@ export type MemberFacts = MemberRaw & {
   loanOwed: bigint;
   behind: number;
 };
+export type Alloc = { loan: number; aave: number; lp: number; cash: number };
 type ProposalRaw = {
   kind: number;
   status: number;
+  epoch: number;
   field: number;
   value: number;
   yes: number;
   no: number;
+  proposer: Address;
+  target: Address;
+  alloc: Alloc;
 };
+const ZERO = "0x0000000000000000000000000000000000000000";
 export type Facts = {
   circle: Address;
   name: string;
@@ -65,7 +71,17 @@ export type Facts = {
   totalRounds: number;
   contribution: bigint;
   exitFeeBps: number;
-  pot: { cash: bigint; invested: bigint; lent: bigint; earned: bigint };
+  pot: {
+    cash: bigint;
+    invested: bigint;
+    lent: bigint;
+    earned: bigint;
+    aave: bigint;
+    lp: bigint;
+  };
+  /** The fund manager (null if none) and their registry record (rounds managed, summed result in bps). */
+  manager: { address: Address; rounds: number; yieldBpsSum: bigint } | null;
+  alloc: Alloc;
   members: MemberFacts[];
   loans: LoanRaw[];
   proposals: (ProposalRaw & { id: number; youVoted: boolean })[];
@@ -87,7 +103,8 @@ type StateRaw = {
     startTime: bigint;
     totalEpochs: number;
   };
-  rules: { exitFeeBps: number };
+  rules: { exitFeeBps: number; alloc: Alloc };
+  manager: Address;
   loanCount: bigint;
   proposalCount: bigint;
 };
@@ -179,6 +196,15 @@ export const readFacts = async (
     user ? c.read<bigint>(c.usdc, abis.usdc, "allowance", [user, circle]) : 0n,
   ]);
   const settled = Number(s.settledEpoch);
+  const mgr =
+    s.manager && s.manager !== ZERO
+      ? await c.read<{ managedEpochs: number; managedYieldBpsSum: bigint }>(
+          c.registry,
+          abis.registry,
+          "managerStats",
+          [s.manager],
+        )
+      : null;
   const members = list.map((address, i) => {
     const [m, wallet, debt] = raws[i];
     const same = (b: Backing) =>
@@ -240,7 +266,18 @@ export const readFacts = async (
       invested: sum.aaveValue + sum.lpValue,
       lent: sum.outstandingPrincipal,
       earned: sum.yieldPot,
+      aave: sum.aaveValue,
+      lp: sum.lpValue,
     },
+    manager:
+      mgr && s.manager
+        ? {
+            address: s.manager,
+            rounds: Number(mgr.managedEpochs),
+            yieldBpsSum: BigInt(mgr.managedYieldBpsSum),
+          }
+        : null,
+    alloc: { ...s.rules.alloc },
     members,
     loans,
     proposals: props,
@@ -294,6 +331,11 @@ const RULE_NAMES = [
 
 export const pct = (bps: number) => `${bps / 100}%`;
 
+/** "ready to lend 40%, Aave 30%, LP pool 20%, cash 10%" */
+export const planText = (a: Alloc) =>
+  `ready to lend ${pct(a.loan)}, Aave ${pct(a.aave)}, LP pool ${pct(a.lp)}, cash ${pct(a.cash)}`;
+const KINDS = ["rule", "plan", "manager", "other", "other"] as const;
+
 export const memberStatus = (m: MemberFacts | undefined): string => {
   if (!m) return "Not joined";
   if (m.status === 2) return "Paused";
@@ -333,6 +375,21 @@ export const toSnapshot = (f: Facts, names: Names, practice: boolean) => {
     return "Saver";
   };
   const s = (v: bigint) => v.toString();
+  const isMgr = (a: Address) =>
+    !!f.manager && a.toLowerCase() === f.manager.address.toLowerCase();
+  const avg = f.manager?.rounds
+    ? Number(f.manager.yieldBpsSum) / f.manager.rounds / 100
+    : null;
+  const title = (p: Facts["proposals"][number]) => {
+    if (p.kind === 0)
+      return `${RULE_NAMES[p.field] ?? "A rule"}: change to ${pct(p.value)}`;
+    if (p.kind === 1) return `New money plan: ${planText(p.alloc)}`;
+    if (p.kind === 2)
+      return p.target === ZERO
+        ? "Remove the fund manager"
+        : `Make ${nameOf(p.target)} the fund manager`;
+    return "Change the circle";
+  };
   return {
     address: f.circle,
     name: f.name,
@@ -348,6 +405,15 @@ export const toSnapshot = (f: Facts, names: Names, practice: boolean) => {
       lent: s(f.pot.lent),
       earned: s(f.pot.earned),
     },
+    manager: f.manager
+      ? {
+          address: f.manager.address,
+          name: nameOf(f.manager.address),
+          roundsManaged: f.manager.rounds,
+          averagePerRound:
+            avg === null ? null : `${avg >= 0 ? "+" : ""}${avg.toFixed(2)}%`,
+        }
+      : null,
     you: me
       ? {
           savings: s(me.savings),
@@ -365,6 +431,8 @@ export const toSnapshot = (f: Facts, names: Names, practice: boolean) => {
       address: m.address,
       name: nameOf(m.address),
       you: isYou(m.address),
+      isManager: isMgr(m.address),
+      practice: false,
       role: role(m),
       status: memberStatus(m),
       savings: s(m.savings),
@@ -387,10 +455,9 @@ export const toSnapshot = (f: Facts, names: Names, practice: boolean) => {
     })),
     proposals: f.proposals.map((p) => ({
       id: p.id,
-      title:
-        p.kind === 0
-          ? `${RULE_NAMES[p.field] ?? "A rule"}: change to ${pct(p.value)}`
-          : "Change the circle",
+      kind: KINDS[p.kind] ?? "other",
+      title: title(p),
+      plan: p.kind === 1 ? { ...p.alloc } : null,
       yes: p.yes,
       no: p.no,
       status: PROPOSAL_STATUS[p.status] ?? "Unknown",

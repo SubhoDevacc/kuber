@@ -202,22 +202,43 @@ export const activity = (c: Chain, chunk: bigint, minGapMs = 0) => {
     const logs = (await syncCircle(circle)) ?? [];
     const borrowers = new Map<string, Address>();
     const titles = new Map<string, string>();
+    const kinds = new Map<string, number>();
     for (const l of logs) {
       if (l.eventName === "LoanRequested")
         borrowers.set(String(l.args.id), l.args.borrower as Address);
       if (l.eventName === "ProposalCreated") {
         let title = "a change to the circle";
-        if (Number(l.args.kind) === 0)
-          try {
+        const kind = Number(l.args.kind);
+        const data = l.args.data as `0x${string}`;
+        try {
+          if (kind === 0) {
             const [f, v] = decodeAbiParameters(
               [{ type: "uint8" }, { type: "uint256" }],
-              l.args.data as `0x${string}`,
+              data,
             );
             title = `${RULES[f] ?? "a rule"} to ${Number(v) / 100}%`;
-          } catch {
-            // keep the generic title
+          } else if (kind === 1) {
+            const [a, b, c2, d] = decodeAbiParameters(
+              [
+                { type: "uint16" },
+                { type: "uint16" },
+                { type: "uint16" },
+                { type: "uint16" },
+              ],
+              data,
+            );
+            title = `a new money plan (ready to lend ${a / 100}%, Aave ${b / 100}%, LP pool ${c2 / 100}%, cash ${d / 100}%)`;
+          } else if (kind === 2) {
+            const [t] = decodeAbiParameters([{ type: "address" }], data);
+            title = /^0x0+$/.test(t)
+              ? "remove the fund manager"
+              : `make ${nameOf(t)} the fund manager`;
           }
+        } catch {
+          // keep the generic title
+        }
         titles.set(String(l.args.id), title);
+        kinds.set(String(l.args.id), kind);
       }
     }
     const claimTx = new Set(
@@ -245,7 +266,13 @@ export const activity = (c: Chain, chunk: bigint, minGapMs = 0) => {
     };
     for (const l of logs) {
       const a = l.args;
-      const id = a.id === undefined ? "" : String(a.id);
+      // MemberSuspended names its loan `loanId`; every other loan event `id`.
+      const id =
+        a.id !== undefined
+          ? String(a.id)
+          : a.loanId !== undefined
+            ? String(a.loanId)
+            : "";
       const borrower = borrowers.get(id) ?? null;
       const amt = (k: string) => BigInt(a[k] as bigint);
       switch (l.eventName) {
@@ -395,10 +422,19 @@ export const activity = (c: Chain, chunk: bigint, minGapMs = 0) => {
           add(l, null, () => "A proposal passed");
           break;
         case "ProposalApplied":
-          add(
-            l,
-            null,
-            () => `The rule changed: ${titles.get(id) ?? "a proposal"}`,
+          add(l, null, () =>
+            kinds.get(id) === 1
+              ? `The money plan changed: ${titles.get(id) ?? "a new plan"}`
+              : kinds.get(id) === 2
+                ? `Applied: ${titles.get(id) ?? "the fund manager change"}`
+                : `The rule changed: ${titles.get(id) ?? "a proposal"}`,
+          );
+          break;
+        case "ManagerChanged":
+          add(l, null, () =>
+            /^0x0+$/.test(String(a.manager))
+              ? "The circle has no fund manager now"
+              : `${nameOf(a.manager as Address)} is now the fund manager`,
           );
           break;
         case "LeaveRequested":

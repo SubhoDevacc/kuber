@@ -66,7 +66,7 @@ export function Finish({
 
         <section className="mt-6 grid gap-3">
           <h2 className="font-display text-xl font-bold text-ink">
-            When Dave stopped paying
+            When Dev stopped paying
           </h2>
           <ul className="grid gap-2">
             {hit.map((m) => (

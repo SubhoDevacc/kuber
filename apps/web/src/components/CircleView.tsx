@@ -1,3 +1,4 @@
+import { Briefcase } from "lucide-react";
 import type { ReactNode } from "react";
 import { formatAmount, isZero, percent } from "../lib/money";
 import type { CircleSnapshot } from "../types";
@@ -65,6 +66,33 @@ function RoundTrack({ c }: { c: CircleSnapshot }) {
   );
 }
 
+/** "Fund manager: Bala" (plus the track record when the server sends it), or that there is none. */
+function ManagerLine({ c }: { c: CircleSnapshot }) {
+  const m = c.manager;
+  if (!m)
+    return (
+      <p className="w-full text-sm text-ink-2">
+        Fund manager: none. The group picks the money plan together.
+      </p>
+    );
+  const record = [
+    m.roundsManaged !== undefined &&
+      `${m.roundsManaged} round${m.roundsManaged === 1 ? "" : "s"} managed`,
+    m.averagePerRound && `${m.averagePerRound} a round on average`,
+  ].filter(Boolean);
+  return (
+    <p className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink">
+      <span className="inline-flex items-center gap-1.5 font-semibold">
+        <Briefcase aria-hidden className="size-4 text-brand" />
+        Fund manager: {m.name}
+      </span>
+      {record.length > 0 && (
+        <span className="text-ink-2">· {record.join(" · ")}</span>
+      )}
+    </p>
+  );
+}
+
 function PotBreakdown({ c }: { c: CircleSnapshot }) {
   const parts = [
     {
@@ -106,10 +134,47 @@ function PotBreakdown({ c }: { c: CircleSnapshot }) {
         ))}
         <div className="flex items-center justify-between gap-3 border-t border-line pt-2 text-sm">
           <dt className="text-ink-2">Earned so far</dt>
-          <dd className="font-semibold text-good">
+          <dd
+            className={`font-semibold ${BigInt(c.pot.earned || "0") < 0n ? "text-bad" : "text-good"}`}
+          >
             <Amount value={c.pot.earned} />
           </dd>
         </div>
+        {(c.pot.aaveEarned !== undefined || c.pot.lpChange !== undefined) && (
+          <div className="flex flex-wrap justify-end gap-x-3 text-xs text-ink-2">
+            {c.pot.aaveEarned !== undefined && (
+              <span>
+                Aave earned{" "}
+                <span className="num font-semibold text-ink">
+                  {formatAmount(c.pot.aaveEarned)}
+                </span>{" "}
+                this round
+              </span>
+            )}
+            {c.pot.lpChange !== undefined && (
+              <span>
+                {BigInt(c.pot.lpChange || "0") < 0n ? (
+                  <>
+                    LP pool down{" "}
+                    <span className="num font-semibold text-bad">
+                      {formatAmount(c.pot.lpChange).replace("-", "")}
+                    </span>{" "}
+                    this round
+                  </>
+                ) : (
+                  <>
+                    LP pool up{" "}
+                    <span className="num font-semibold text-ink">
+                      {formatAmount(c.pot.lpChange)}
+                    </span>{" "}
+                    this round
+                  </>
+                )}
+              </span>
+            )}
+          </div>
+        )}
+        {c.pot.note && <p className="text-xs text-ink-2">{c.pot.note}</p>}
       </dl>
     </div>
   );
@@ -135,6 +200,7 @@ export function CircleView({
           {roundLine(c)}. Everyone saves {formatAmount(c.contribution)} mUSDC
           per round.
         </p>
+        {c.manager !== undefined && <ManagerLine c={c} />}
       </header>
       {top}
 
@@ -224,8 +290,24 @@ export function CircleView({
                         <span className="font-normal text-ink-2"> (you)</span>
                       )}
                     </p>
-                    {m.role && (
-                      <p className="truncate text-xs text-ink-2">{m.role}</p>
+                    {(m.role || m.isManager || m.practice) && (
+                      <p className="flex flex-wrap items-center gap-1.5 text-xs text-ink-2">
+                        {m.isManager && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-accent-soft px-1.5 py-0.5 font-semibold text-warn">
+                            <Briefcase aria-hidden className="size-3" />
+                            Fund manager
+                          </span>
+                        )}
+                        {m.practice && (
+                          <span className="rounded-md border border-brand/30 bg-brand-soft px-1.5 py-0.5 font-semibold text-brand">
+                            Practice member
+                          </span>
+                        )}
+                        {m.role &&
+                          !(m.practice && m.role === "Practice member") && (
+                            <span className="truncate">{m.role}</span>
+                          )}
+                      </p>
                     )}
                   </div>
                   <Chip tone={statusTone(m.status)}>{m.status}</Chip>

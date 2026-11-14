@@ -39,19 +39,40 @@ export function MenuPage({ go, onSignOut }: { go: Go; onSignOut: () => void }) {
     <div className="min-h-dvh">
       <AppBar go={go} back={() => go({ name: "home" })} />
       <Page>
-        <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
-          {me.name}
-        </h1>
-        <div className="mt-4 grid gap-4">
-          <Section title="Your wallet">
-            <p className="text-sm text-ink-2">Address</p>
-            <p className="num mt-0.5 break-all font-mono text-sm text-ink">
+        <header className="flex items-center gap-4">
+          <span
+            aria-hidden="true"
+            className="grid size-14 shrink-0 place-items-center rounded-2xl bg-accent font-display text-2xl font-bold text-brand-deep"
+          >
+            {me.name?.charAt(0).toUpperCase() || "K"}
+          </span>
+          <div className="min-w-0">
+            <h1 className="truncate font-display text-3xl font-bold tracking-tight text-ink">
+              {me.name}
+            </h1>
+            <p className="num truncate font-mono text-xs text-ink-2">
+              {signer.address.slice(0, 8)}…{signer.address.slice(-6)}
+            </p>
+          </div>
+        </header>
+        <div className="mt-6 grid gap-5">
+          <section className="on-dark arrive rounded-3xl border border-brand bg-brand-deep p-5 text-white shadow-[0_10px_30px_var(--color-shadow)]">
+            <h2 className="text-sm font-semibold text-white/80">Your wallet</h2>
+            <p className="num mt-3 font-display text-3xl font-bold tracking-tight">
+              {formatAmount(me.musdc)}{" "}
+              <span className="text-base font-medium text-accent">mUSDC</span>
+            </p>
+            <p className="num mt-1 text-sm text-white/75">
+              {formatAvax(me.avax)} AVAX for network fees
+            </p>
+            <p className="mt-5 text-xs text-white/70">Address</p>
+            <p className="num mt-1 break-all font-mono text-xs text-white">
               {signer.address}
             </p>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-4 flex flex-wrap gap-2">
               <Button
                 variant="secondary"
-                className="min-h-11 px-3 text-sm"
+                className="min-h-11 !border-white/60 !bg-transparent px-3 text-sm !text-white hover:!border-white hover:!bg-white/10"
                 onClick={copy}
               >
                 <Copy aria-hidden className="size-4" />{" "}
@@ -62,28 +83,14 @@ export function MenuPage({ go, onSignOut }: { go: Go; onSignOut: () => void }) {
                   href={`${chain.explorer}/address/${signer.address}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line px-3 text-sm font-semibold text-ink hover:border-brand"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/60 px-3 text-sm font-semibold text-white transition-colors hover:border-white hover:bg-white/10"
                 >
                   <ExternalLink aria-hidden className="size-4" /> View on
                   Snowtrace
                 </a>
               )}
             </div>
-            <dl className="mt-4 grid grid-cols-2 gap-3">
-              <div>
-                <dt className="text-xs text-ink-2">Test money</dt>
-                <dd className="num font-semibold text-ink">
-                  {formatAmount(me.musdc)} mUSDC
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-ink-2">For network fees</dt>
-                <dd className="num font-semibold text-ink">
-                  {formatAvax(me.avax)} AVAX
-                </dd>
-              </div>
-            </dl>
-          </Section>
+          </section>
 
           <Section title="Your activity">
             {error && <p className="mb-2 text-sm text-bad">{error}</p>}
@@ -94,7 +101,7 @@ export function MenuPage({ go, onSignOut }: { go: Go; onSignOut: () => void }) {
             />
           </Section>
 
-          <div className="grid gap-2">
+          <div className="grid gap-2 border-t border-line pt-5">
             <Button
               variant="secondary"
               onClick={() => go({ name: "tutorial" })}

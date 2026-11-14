@@ -2,20 +2,20 @@ import { describe, expect, it } from "vitest";
 import { describeCall, describeEvent, duration, pct, who } from "./txDescribe";
 
 const CIRCLE = "0x1111111111111111111111111111111111111111";
-const BOB = "0x2222222222222222222222222222222222222222";
+const BALA = "0x2222222222222222222222222222222222222222";
 const ME = "0x3333333333333333333333333333333333333333";
 const STRANGER = "0xAbCdEf0000000000000000000000000000001234";
 const ZERO = "0x0000000000000000000000000000000000000000";
 const labels = {
   [CIRCLE]: "This circle",
-  [BOB]: "Bob",
+  [BALA]: "Bala",
   [ME]: "You",
 };
 
 describe("helpers", () => {
   it("names addresses from labels, else short form", () => {
-    expect(who(BOB, labels)).toBe("Bob");
-    expect(who(BOB.toUpperCase().replace("0X", "0x"), labels)).toBe("Bob");
+    expect(who(BALA, labels)).toBe("Bala");
+    expect(who(BALA.toUpperCase().replace("0X", "0x"), labels)).toBe("Bala");
     expect(who(STRANGER, labels)).toBe("0xAbCd…1234");
   });
   it("formats percents and durations", () => {
@@ -84,7 +84,7 @@ describe("describeCall", () => {
           maxMembers: 6,
         },
         rules_: { ownLtvBps: 9000, ownRateBps: 500 },
-        invites: [BOB],
+        invites: [BALA],
       },
       labels,
     );
@@ -99,15 +99,15 @@ describe("describeCall", () => {
       label: "Borrow up to",
       value: "90.00% of own savings",
     });
-    expect(d.rows).toContainEqual({ label: "Invited", value: "Bob" });
+    expect(d.rows).toContainEqual({ label: "Invited", value: "Bala" });
     expect(
       JSON.stringify(d.rows, (_, v) => (typeof v === "bigint" ? "" : v)),
     ).not.toContain("object");
   });
   it("falls back to the function name", () => {
-    expect(describeCall("recordJoin", { person: BOB }, labels)).toEqual({
+    expect(describeCall("recordJoin", { person: BALA }, labels)).toEqual({
       headline: "Called recordJoin",
-      rows: [{ label: "Person", value: "Bob" }],
+      rows: [{ label: "Person", value: "Bala" }],
     });
   });
 });
@@ -117,10 +117,10 @@ describe("describeEvent", () => {
     expect(
       describeEvent(
         "ContributionPaid",
-        { member: BOB, epoch: 3n, amount: 100000000n },
+        { member: BALA, epoch: 3n, amount: 100000000n },
         labels,
       ),
-    ).toBe("Bob saved 100.00 mUSDC (round 3)");
+    ).toBe("Bala saved 100.00 mUSDC (round 3)");
     expect(
       describeEvent(
         "LoanRequested",
@@ -138,10 +138,10 @@ describe("describeEvent", () => {
     expect(
       describeEvent(
         "Backed",
-        { id: 1n, backer: BOB, tier: 0, amount: 80000000n },
+        { id: 1n, backer: BALA, tier: 0, amount: 80000000n },
         labels,
       ),
-    ).toBe("Bob backed loan #1 with 80.00 mUSDC");
+    ).toBe("Bala backed loan #1 with 80.00 mUSDC");
     expect(
       describeEvent("Voted", { id: 1n, voter: ME, yes: false }, labels),
     ).toBe("You voted no on rule change #1");
@@ -149,8 +149,8 @@ describe("describeEvent", () => {
       "Round 4 closed",
     );
     expect(
-      describeEvent("Withdrawn", { member: BOB, amount: 712043010n }, labels),
-    ).toBe("Bob collected a share-out of 712.04 mUSDC");
+      describeEvent("Withdrawn", { member: BALA, amount: 712043010n }, labels),
+    ).toBe("Bala collected a share-out of 712.04 mUSDC");
   });
   it("words token events, including mints", () => {
     expect(
@@ -163,10 +163,10 @@ describe("describeEvent", () => {
     expect(
       describeEvent(
         "Transfer",
-        { from: ZERO, to: BOB, value: 1000000000n },
+        { from: ZERO, to: BALA, value: 1000000000n },
         labels,
       ),
-    ).toBe("1,000.00 mUSDC test money created for Bob");
+    ).toBe("1,000.00 mUSDC test money created for Bala");
     expect(
       describeEvent(
         "Transfer",

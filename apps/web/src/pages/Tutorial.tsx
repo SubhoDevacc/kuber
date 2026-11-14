@@ -161,12 +161,13 @@ function ChapterProgress({ t }: { t: TutorialState }) {
 export function Tutorial({
   initial,
   privateKey,
-  onSkip,
+  onLeave,
   onDone,
 }: {
   initial: TutorialState;
   privateKey: Hex;
-  onSkip: () => void;
+  /** Only for someone who finished the tutorial once: a first run has no way out but to finish. */
+  onLeave?: () => void;
   onDone: (t: TutorialState) => void;
 }) {
   const [t, setT] = useState(initial);
@@ -344,13 +345,19 @@ export function Tutorial({
             <span className="font-bold">Tutorial mode</span>
             <span className="text-white/85"> with test money</span>
           </p>
-          <button
-            type="button"
-            onClick={onSkip}
-            className="min-h-11 px-1 text-sm font-semibold text-white underline underline-offset-4"
-          >
-            Skip tutorial
-          </button>
+          {onLeave ? (
+            <button
+              type="button"
+              onClick={onLeave}
+              className="min-h-11 px-1 text-sm font-semibold text-white underline underline-offset-4"
+            >
+              Leave tutorial
+            </button>
+          ) : (
+            <p className="py-2 text-right text-xs text-white/85">
+              Finish the tutorial to open the app
+            </p>
+          )}
         </div>
         {/* Phones: the two numbers you always want in view. */}
         <div className="mx-auto flex max-w-6xl items-baseline justify-between gap-3 border-t border-white/15 px-4 py-2 lg:hidden">

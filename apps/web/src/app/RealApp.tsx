@@ -161,17 +161,21 @@ function PrivyWallet({
   if (!authenticated)
     return (
       <Centered>
-        <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
-          Sign in to Kuber
-        </h1>
-        <p className="text-base text-ink-2">
-          Sign in with your email to get your own wallet. It holds test money
-          only.
-        </p>
-        <Button onClick={() => login()}>Sign in</Button>
-        <Button variant="secondary" onClick={onExit}>
-          Back
-        </Button>
+        <div className="arrive mt-4 rounded-3xl border border-line bg-surface p-5 shadow-[0_10px_30px_var(--color-shadow)] sm:p-7">
+          <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
+            Sign in to Kuber
+          </h1>
+          <p className="mt-3 text-base leading-relaxed text-ink-2">
+            Sign in with your email to get your own wallet. It holds test money
+            only.
+          </p>
+          <div className="mt-6 grid gap-3">
+            <Button onClick={() => login()}>Sign in</Button>
+            <Button variant="secondary" onClick={onExit}>
+              Back
+            </Button>
+          </div>
+        </div>
       </Centered>
     );
   if (error)

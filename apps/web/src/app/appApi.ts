@@ -1,6 +1,6 @@
 // The real app's server (`/api/app`, REAL-APP.md). Amounts are base-unit strings (6 decimals) like the tutorial's.
 import { ApiError } from "../lib/errors";
-import type { CircleSnapshot, Hex } from "../types";
+import type { CircleSnapshot, Hex, MoneyPlan } from "../types";
 
 export type AppHealth = {
   ok: boolean;
@@ -17,6 +17,8 @@ export type AppMe = {
   musdc: string;
   avax: string;
   granted: boolean;
+  /** If the server ever remembers it: this person finished the tutorial once. */
+  tutorialDone?: boolean;
 };
 
 export type AppCircle = {
@@ -46,7 +48,16 @@ export type LoanRequest = {
   repayRounds?: number;
   canBack?: boolean;
   maxBack?: string;
+  /** The offered rate in basis points (800 = 8%), when the server sends it; otherwise parsed from `rate`. */
+  rateBps?: number;
+  /** Server-computed risk for the suggested backing amount (base units). */
+  ifYouBack?: Risk;
+  ifYouAgree?: Risk;
+  canAgree?: boolean;
+  maxAgree?: string;
 };
+
+export type Risk = { amount: string; couldLose: string; wouldEarn: string };
 
 export type OpenProposal = {
   id: number;
@@ -56,6 +67,7 @@ export type OpenProposal = {
   needed: number;
   youVoted: boolean;
   open: boolean;
+  kind?: "rule" | "plan" | "manager" | "other";
 };
 
 export type Live = {
@@ -99,6 +111,33 @@ export type Live = {
     pendingLeave: boolean;
     canCollect?: boolean;
     freeSavings?: string;
+    /** May propose a new money plan (no manager, or you are the manager). */
+    canProposePlan?: boolean;
+    canProposeManager?: boolean;
+    canRemoveManager?: boolean;
+    isManager?: boolean;
+    proposedThisRound?: boolean;
+    proposeReason?: string | null;
+    rateLimits?: { minBps: number; maxBps: number };
+  };
+  /** The money plan in force (bps) and its rules. */
+  plan?: {
+    current: MoneyPlan;
+    limits?: { loanMax: number; lpMax: number; cashMin: number; total: number };
+    parts?: { key: keyof MoneyPlan; label: string; help: string }[];
+  };
+  planNote?: string | null;
+  managerCandidates?: { address: Hex; name: string; practice?: boolean }[];
+  /** The manager is a practice member: the user may ask them to propose a plan. */
+  canAskManagerPlan?: boolean;
+  askManagerPlanLabel?: string | null;
+  managerPreset?: MoneyPlan | null;
+  managerPresetNote?: string | null;
+  investments?: {
+    earnedSoFar: string;
+    aave?: { value: string; apyBps: number; earnedThisRound: string };
+    lp?: { value: string; apyBps: number; changeThisRound: string };
+    note?: string | null;
   };
   requests: LoanRequest[];
   proposals: OpenProposal[];
@@ -259,6 +298,9 @@ export const appApi = {
     raw<unknown>("POST", `/circles/${a}/practice-members`, { count }),
   practiceBack: (a: string, requestId: number) =>
     raw<unknown>("POST", `/circles/${a}/practice-back`, { requestId }),
+  /** The practice member who is fund manager proposes the preset money plan (a real `propose` from their wallet). */
+  practicePlan: (a: string) =>
+    raw<AppCircleDetail>("POST", `/circles/${a}/practice-plan`, {}),
   /** Four practice-member addresses to invite in `createCircle` (they join only when added). */
   practiceInvites: () => raw<{ invites: Hex[] }>("GET", "/practice-invites"),
   names: (addrs: string[]) =>

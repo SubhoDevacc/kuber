@@ -278,8 +278,17 @@ const play = async (name: string, choice: "join" | "create" = "join") => {
         "success",
       );
     }
-    if (stepId === "request" || stepId === "create")
+    if (stepId === "request" || stepId === "create" || stepId === "manager")
       samples[`${choice}: lastChange after ${stepId}`] = s.lastChange;
+    // Round 3, item 5: the backer's risk and reward in money, from Bala's side (the contract's formula).
+    if (stepId === "request")
+      expect(s.lastChange.rows.map((x: J) => x.after)).toContain(
+        "Bala could lose up to 80.00 · Bala earns 6.40",
+      );
+    // Round 3, item 2: the snapshot names the fund manager (none in the tutorial unless voted in).
+    expect(s.snapshot).toHaveProperty("manager");
+    for (const m of s.snapshot.members)
+      expect(typeof m.isManager).toBe("boolean");
     if (SETTLES.includes(stepId))
       expect(
         s.lastChange.txs.some((x: J) =>
@@ -297,7 +306,7 @@ const play = async (name: string, choice: "join" | "create" = "join") => {
           after[i] - before[i],
         ]),
       );
-      payouts = ["You", "Bob", "Cara", "Dave", "Erin", "Frank"].map(
+      payouts = ["You", "Bala", "Chitra", "Dev", "Esha", "Farhan"].map(
         (n) => byName.get(n) as bigint,
       );
     }
@@ -312,7 +321,7 @@ const play = async (name: string, choice: "join" | "create" = "join") => {
   const whats = act.json.map((e: J) => e.what);
   expect(whats).toContain("You joined");
   expect(whats).toContain("You asked to borrow 350.00");
-  expect(whats).toContain("Bob backed your loan with 80.00");
+  expect(whats).toContain("Bala backed your loan with 80.00");
   expect(whats).toContain("Round 7 closed");
   expect(act.json[0].block).toBeGreaterThanOrEqual(act.json.at(-1).block);
   const mine = await api(me, "GET", "/activity");
@@ -344,11 +353,17 @@ const checkEnd = (r: Awaited<ReturnType<typeof play>>) => {
     714_077_090n,
   ]);
   const m = new Map(r.s.snapshot.members.map((x: J) => [x.name, x]));
+  // Round 3, item 9: the user voted Bala in as fund manager (0% fee; the end numbers above are unchanged).
+  expect(r.s.snapshot.manager?.name).toBe("Bala");
+  expect((m.get("Bala") as J).isManager).toBe(true);
+  expect(r.s.snapshot.proposals.map((p: J) => p.title)).toContain(
+    "Make Bala the fund manager",
+  );
   const get = (n: string) => m.get(n) as J;
-  expect(get("Dave").debt).toBe("106749998");
-  expect(get("Cara").lost).toBe("30000000");
-  expect(get("Erin").lost).toBe("20000000");
-  expect(get("Frank").lost).toBe("0");
+  expect(get("Dev").debt).toBe("106749998");
+  expect(get("Chitra").lost).toBe("30000000");
+  expect(get("Esha").lost).toBe("20000000");
+  expect(get("Farhan").lost).toBe("0");
   expect(get("You").lost).toBe("0");
   expect(r.s.snapshot.status).toBe("Completed");
   expect(r.s.done).toBe(true);

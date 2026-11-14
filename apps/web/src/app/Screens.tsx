@@ -2,19 +2,25 @@ import { ChevronLeft, CircleCheck, Menu as MenuIcon } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { isAddress } from "viem";
 import { Button, Wordmark } from "../components/ui";
-import { api, setApiAddress } from "../lib/api";
 import { ApiError } from "../lib/errors";
 import { formatAmount } from "../lib/money";
-import { addressOf, createKey } from "../lib/wallet";
-import { Finish } from "../pages/Finish";
-import { Tutorial } from "../pages/Tutorial";
-import type { Hex, TutorialState } from "../types";
+import { markTutorialDone, tutorialDone } from "../lib/tutorialDone";
+import type { Hex } from "../types";
 import { appApi } from "./appApi";
 import { CirclePage } from "./Circle";
 import { CreatePage } from "./Create";
 import { useApp } from "./ctx";
 import { HomePage } from "./Home";
 import { MenuPage } from "./Menu";
+import {
+  markTipShown,
+  PracticeTutorial,
+  TutorialSwitchCtx,
+  TutorialTip,
+  TutorialToggle,
+  tipShown,
+  WhatNext,
+} from "./TutorialMode";
 
 export type Go = (v: View) => void;
 export type View =
@@ -22,7 +28,9 @@ export type View =
   | { name: "create" }
   | { name: "circle"; address: Hex }
   | { name: "menu" }
-  | { name: "tutorial" };
+  | { name: "tutorial"; from?: View }
+  | { name: "whatnext" }
+  | { name: "join" };
 
 /** Shared top bar: back (or the wordmark) on the left, Menu on the right. */
 export function AppBar({
@@ -51,15 +59,19 @@ export function AppBar({
             <Wordmark />
           </span>
         )}
-        <button
-          type="button"
-          onClick={() => go({ name: "menu" })}
-          className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line px-3 font-semibold text-ink"
-        >
-          <MenuIcon aria-hidden className="size-5" />
-          Menu
-        </button>
+        <div className="flex items-center gap-1">
+          <TutorialToggle />
+          <button
+            type="button"
+            onClick={() => go({ name: "menu" })}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line px-3 font-semibold text-ink"
+          >
+            <MenuIcon aria-hidden className="size-5" />
+            Menu
+          </button>
+        </div>
       </div>
+      <TutorialTip />
     </header>
   );
 }
@@ -86,11 +98,33 @@ export function Screens({ onSignOut }: { onSignOut: () => void }) {
   const { me } = useApp();
   const [onboarding, setOnboarding] = useState(!me.name || !me.verified);
   const [view, setView] = useState<View>(startView);
+  // A new person finishes the tutorial once before the app opens; remembered per wallet (or said by the server).
+  const [done, setDone] = useState(
+    () => tutorialDone(me.address) || me.tutorialDone === true,
+  );
+  // The "Tutorial mode" switch is highlighted once, the first time the app opens after the tutorial.
+  const [tip, setTip] = useState(() => !tipShown(me.address));
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll to top on each new screen
   useEffect(() => {
     window.scrollTo({ top: 0 });
   }, [view.name, onboarding]);
+
+  // "Join a circle" lands on Home at the Invited / Open circles list (Home renders them as headings).
+  useEffect(() => {
+    if (view.name !== "join") return;
+    let n = 0;
+    const id = setInterval(() => {
+      const h = [...document.querySelectorAll("main h2")].find((e) =>
+        /^(Invited|Open circles)/.test(e.textContent?.trim() ?? ""),
+      );
+      if (h || ++n > 20) {
+        clearInterval(id);
+        h?.scrollIntoView({ block: "start" });
+      }
+    }, 150);
+    return () => clearInterval(id);
+  }, [view.name]);
 
   const home = () => setView({ name: "home" });
   if (onboarding)
@@ -100,26 +134,75 @@ export function Screens({ onSignOut }: { onSignOut: () => void }) {
           setOnboarding(false);
           setView({ name: "tutorial" });
         }}
-        onHome={() => {
-          setOnboarding(false);
-          home();
+        onHome={
+          done
+            ? () => {
+                setOnboarding(false);
+                home();
+              }
+            : undefined
+        }
+      />
+    );
+  // Before the first finish every screen is the tutorial (a shared circle link opens after it).
+  if (!done || view.name === "tutorial") {
+    const back: View =
+      view.name === "tutorial" && view.from ? view.from : { name: "home" };
+    return (
+      <PracticeTutorial
+        owner={me.address}
+        name={me.name ?? "Saver"}
+        firstRun={!done}
+        onLeave={done ? () => setView(back) : undefined}
+        onFinish={() => {
+          markTutorialDone(me.address);
+          setDone(true);
+          if (!done) setView({ name: "whatnext" });
+          else setView(back);
         }}
       />
     );
-  switch (view.name) {
-    case "tutorial":
-      return <PracticeTutorial name={me.name ?? "Saver"} onHome={home} />;
-    case "create":
-      return <CreatePage go={setView} />;
-    case "circle":
-      return (
-        <CirclePage key={view.address} address={view.address} go={setView} />
-      );
-    case "menu":
-      return <MenuPage go={setView} onSignOut={onSignOut} />;
-    default:
-      return <HomePage go={setView} />;
   }
+  const screen = (() => {
+    switch (view.name) {
+      case "whatnext":
+        return (
+          <WhatNext
+            onCreate={() => setView({ name: "create" })}
+            onJoin={() => setView({ name: "join" })}
+            onHome={home}
+          />
+        );
+      case "create":
+        return <CreatePage go={setView} />;
+      case "circle":
+        return (
+          <CirclePage key={view.address} address={view.address} go={setView} />
+        );
+      case "menu":
+        return <MenuPage go={setView} onSignOut={onSignOut} />;
+      default:
+        return <HomePage go={setView} />;
+    }
+  })();
+  return (
+    <TutorialSwitchCtx.Provider
+      value={{
+        enter: () => {
+          setTip(false);
+          markTipShown(me.address);
+          setView({ name: "tutorial", from: view });
+        },
+        tip: tip && view.name !== "whatnext",
+        dismissTip: () => {
+          setTip(false);
+          markTipShown(me.address);
+        },
+      }}
+    >
+      {screen}
+    </TutorialSwitchCtx.Provider>
+  );
 }
 
 const NAME = /^[A-Za-z0-9 -]{3,24}$/;
@@ -130,7 +213,8 @@ function Onboard({
   onHome,
 }: {
   onTutorial: () => void;
-  onHome: () => void;
+  /** Only once the tutorial was finished on this wallet (or the dev-only escape). */
+  onHome?: () => void;
 }) {
   const { refreshMe } = useApp();
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -180,9 +264,15 @@ function Onboard({
         <p className="text-sm font-semibold text-brand">
           {step < 3 ? `Step ${step} of 2` : "All set"}
         </p>
+        <div className="mt-2 flex gap-2" aria-hidden="true">
+          <span className="h-1.5 w-12 rounded-full bg-brand" />
+          <span
+            className={`h-1.5 w-12 rounded-full ${step > 1 ? "bg-brand" : "bg-line"}`}
+          />
+        </div>
         {step === 1 && (
           <form onSubmit={next} noValidate>
-            <h1 className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">
+            <h1 className="mt-5 font-display text-3xl font-bold tracking-tight text-ink">
               Choose a display name
             </h1>
             <p className="mt-2 text-base text-ink-2">
@@ -196,13 +286,16 @@ function Onboard({
             </label>
             <input
               id="app-name"
+              name="nickname"
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoComplete="nickname"
+              spellCheck={false}
+              placeholder="Asha K…"
               maxLength={24}
               aria-invalid={nameError ? true : undefined}
               aria-describedby="app-name-hint"
-              className="mt-2 block min-h-12 w-full rounded-xl border border-line bg-surface px-4 text-base text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/30 aria-invalid:border-bad"
+              className="mt-2 block min-h-12 w-full rounded-xl border border-line bg-surface px-4 text-base text-ink focus:border-brand focus:ring-2 focus:ring-brand/30 aria-invalid:border-bad"
             />
             <p
               id="app-name-hint"
@@ -217,7 +310,7 @@ function Onboard({
         )}
         {step === 2 && (
           <div>
-            <h1 className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">
+            <h1 className="mt-5 font-display text-3xl font-bold tracking-tight text-ink">
               Verify it's you
             </h1>
             <p className="mt-2 text-base leading-relaxed text-ink">
@@ -263,7 +356,9 @@ function Onboard({
         )}
         {step === 3 && result && (
           <div>
-            <CircleCheck aria-hidden className="mt-2 size-12 text-good" />
+            <span className="mt-5 grid size-14 place-items-center rounded-2xl bg-accent text-brand-deep">
+              <CircleCheck aria-hidden className="size-8" />
+            </span>
             <h1
               className="mt-3 font-display text-3xl font-bold tracking-tight text-ink"
               aria-live="polite"
@@ -272,97 +367,20 @@ function Onboard({
             </h1>
             <p className="mt-2 text-base leading-relaxed text-ink">
               You're verified, {name}. Your wallet also has a little AVAX to pay
-              network fees. Next, a short tutorial on a practice circle — or
-              skip it and start using Kuber.
+              network fees. Next, a short tutorial on a practice circle.
+              {onHome ? "" : " Finish it once to open the app."}
             </p>
             <div className="mt-6 grid gap-3">
               <Button onClick={onTutorial}>Start the tutorial</Button>
-              <Button variant="secondary" onClick={onHome}>
-                Skip tutorial
-              </Button>
+              {onHome && (
+                <Button variant="secondary" onClick={onHome}>
+                  Open the app
+                </Button>
+              )}
             </div>
           </div>
         )}
       </main>
     </div>
-  );
-}
-
-/**
- * The tutorial as it is today, on the practice chain, with a practice wallet made silently and the same name
- * (the tutorial's own sign-up step is skipped). Skip and finish both lead to the real app's Home.
- */
-function PracticeTutorial({
-  name,
-  onHome,
-}: {
-  name: string;
-  onHome: () => void;
-}) {
-  const [key] = useState<Hex>(createKey);
-  const [t, setT] = useState<TutorialState | null>(null);
-  const [finished, setFinished] = useState<TutorialState | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [tries, setTries] = useState(0);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: retry re-runs it
-  useEffect(() => {
-    let live = true;
-    setError(null);
-    setApiAddress(addressOf(key));
-    (async () => {
-      let me = await api.me();
-      if (!me.name || !me.verified) {
-        try {
-          me = await api.onboard(name);
-        } catch (err) {
-          // Names are unique on the practice server; add a short tag if this one is taken there.
-          if (!(err instanceof ApiError) || err.status !== 409) throw err;
-          const tag = String(Math.floor(1000 + Math.random() * 9000));
-          me = await api.onboard(`${name.slice(0, 19)}-${tag}`);
-        }
-      }
-      const state = me.tutorial ?? (await api.start());
-      if (live) setT(state);
-    })().catch((err) => {
-      if (live)
-        setError(
-          err instanceof Error ? err.message : "Couldn't open the tutorial.",
-        );
-    });
-    return () => {
-      live = false;
-    };
-  }, [tries]);
-
-  if (finished) return <Finish t={finished} onEnter={onHome} />;
-  if (error)
-    return (
-      <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4">
-        <Wordmark />
-        <p role="alert" className="text-lg font-semibold text-ink">
-          {error}
-        </p>
-        <Button onClick={() => setTries((n) => n + 1)}>Try again</Button>
-        <Button variant="secondary" onClick={onHome}>
-          Skip tutorial
-        </Button>
-      </div>
-    );
-  if (!t)
-    return (
-      <div className="grid min-h-dvh place-items-center" role="status">
-        <p className="text-ink-2">Setting up your practice circle…</p>
-      </div>
-    );
-  if (t.done) return <Finish t={t} onEnter={onHome} />;
-  return (
-    <Tutorial
-      key={t.circle}
-      initial={t}
-      privateKey={key}
-      onSkip={onHome}
-      onDone={setFinished}
-    />
   );
 }

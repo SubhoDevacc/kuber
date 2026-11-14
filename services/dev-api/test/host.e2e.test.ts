@@ -158,7 +158,7 @@ async function* play(name: string) {
           after[i] - before[i],
         ]),
       );
-      payouts = ["You", "Bob", "Cara", "Dave", "Erin", "Frank"].map(
+      payouts = ["You", "Bala", "Chitra", "Dev", "Esha", "Farhan"].map(
         (n) => byName.get(n) as bigint,
       );
     }
@@ -177,9 +177,9 @@ const checkEnd = (r: { s: J; payouts: bigint[] }) => {
     714_077_090n,
   ]);
   const m = new Map(r.s.snapshot.members.map((x: J) => [x.name, x]));
-  expect((m.get("Dave") as J).debt).toBe("106749998");
-  expect((m.get("Cara") as J).lost).toBe("30000000");
-  expect((m.get("Erin") as J).lost).toBe("20000000");
+  expect((m.get("Dev") as J).debt).toBe("106749998");
+  expect((m.get("Chitra") as J).lost).toBe("30000000");
+  expect((m.get("Esha") as J).lost).toBe("20000000");
   expect(r.s.snapshot.status).toBe("Completed");
   expect(r.s.done).toBe(true);
 };
@@ -196,7 +196,7 @@ test("hosted: two users interleaved through the whole tutorial, each on their ow
   expect(await page.text()).toBe(INDEX);
 
   const u1 = play("Alice");
-  const u2 = play("Bobby");
+  const u2 = play("Kabir");
   let r1: J;
   let r2: J;
   let turns = 0;

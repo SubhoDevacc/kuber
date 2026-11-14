@@ -54,7 +54,16 @@ const WORDS: Record<string, string> = {
   NotPending: "This loan request isn't waiting for backers any more.",
   AlreadyVoted: "You've already voted on this.",
   VotingClosed: "Voting on this has closed.",
-  ProposalOpen: "There's already an open vote on this rule.",
+  ProposalOpen:
+    "There's already an open vote on this. Wait for it to close at the end of the round.",
+  OnlyManager:
+    "Only the fund manager can suggest a new money plan while one is in place.",
+  IsManager:
+    "You're the fund manager, so you can't suggest a manager change yourself.",
+  InvalidAllocation:
+    "The money plan must add up to 100%, with at most 40% ready to lend, at most 50% in the LP pool and at least 5% as cash.",
+  InvalidTarget: "That member can't be picked right now.",
+  InvalidManagerFee: "The fund manager's fee can be at most 10%.",
   NotMember: "Only members can do this.",
   NotCreator: "Only the person who created the circle can do this.",
   NothingToClaim: "There's nothing to collect yet.",

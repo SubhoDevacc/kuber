@@ -4,7 +4,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { mockLpVaultAbi } from "@kuber/shared";
 import { PrivyClient } from "@privy-io/node";
 import { Hono } from "hono";
 import {
@@ -20,18 +21,21 @@ import {
   parseEther,
   toHex,
   verifyMessage,
+  zeroAddress,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { z } from "zod";
 import { type ActivityEntry, activity } from "./activity.ts";
 import { type Chain, connect } from "./chain.ts";
 import {
+  type Alloc,
   type Facts,
   installmentOf,
   loanOwed,
   money,
   type Names,
   pct,
+  planText,
   readFacts,
   toSnapshot,
 } from "./snapshot.ts";
@@ -53,6 +57,14 @@ const FujiEnvSchema = z.object({
   LOG_MIN_GAP_MS: z.coerce.number().int().min(0).default(3000),
   POLL_MS: z.coerce.number().int().min(10).default(1000),
   NAMES_PATH: z.string().optional(),
+  // Test-vault demo controls (round 3): yield sped up so a 2-minute round earns about a month of interest
+  // (30 days / 120 s = 21,600); 0 = leave the vaults as they are. The LP pool's price moves now and then.
+  VAULT_SPEEDUP: z.coerce.number().int().min(0).max(1_000_000).default(21_600),
+  VAULT_AAVE_APY_BPS: z.coerce.number().int().min(0).max(10_000).default(500),
+  VAULT_LP_APY_BPS: z.coerce.number().int().min(0).max(10_000).default(800),
+  LP_MOVE_EVERY_MS: z.coerce.number().int().min(0).default(60_000),
+  LP_MOVE_UP_BPS: z.coerce.number().int().min(1).max(500).default(30),
+  LP_MOVE_DOWN_BPS: z.coerce.number().int().min(1).max(500).default(20),
 });
 export type FujiEnv = z.infer<typeof FujiEnvSchema>;
 export const parseFujiEnv = (raw: NodeJS.ProcessEnv): FujiEnv => {
@@ -70,6 +82,67 @@ const SIGN_SKEW_MS = 5 * 60_000;
 const FAUCET_MS = 3600_000;
 const SETTLE_BATCH = 25n;
 const PRACTICE_COUNT = 4;
+/** Real-app practice members' names (index 0-3); every such row also carries practice: true. */
+export const PRACTICE_NAMES = ["Gita", "Hari", "Indu", "Jay"] as const;
+/** Contract bounds (Params.validateRules / Queue): the money plan and the rate a borrower offers. */
+const PLAN_LIMITS = {
+  loanMax: 4_000,
+  lpMax: 5_000,
+  cashMin: 500,
+  total: 10_000,
+};
+const MAX_OFFERED_RATE = 3_000;
+const PLAN_PARTS = [
+  {
+    key: "loan",
+    label: "Ready to lend",
+    help: "Kept free so members can borrow from the pot.",
+  },
+  {
+    key: "aave",
+    label: "Aave",
+    help: "Lent out on Aave (test vault): steady interest.",
+  },
+  {
+    key: "lp",
+    label: "LP pool",
+    help: "Put in a trading pool (test vault): earns more, but its value can go down.",
+  },
+  {
+    key: "cash",
+    label: "Cash",
+    help: "Kept as cash for payouts and people leaving.",
+  },
+];
+/** What a practice fund manager proposes: "safer" unless the plan already is that, then "more growth". */
+const PRESET_SAFE: Alloc = { loan: 4_000, aave: 3_500, lp: 1_500, cash: 1_000 };
+const PRESET_GROWTH: Alloc = {
+  loan: 4_000,
+  aave: 2_500,
+  lp: 2_500,
+  cash: 1_000,
+};
+const sameAlloc = (a: Alloc, b: Alloc) =>
+  a.loan === b.loan && a.aave === b.aave && a.lp === b.lp && a.cash === b.cash;
+export const encodeAlloc = (a: Alloc) =>
+  encodeAbiParameters(
+    [
+      { type: "uint16" },
+      { type: "uint16" },
+      { type: "uint16" },
+      { type: "uint16" },
+    ],
+    [a.loan, a.aave, a.lp, a.cash],
+  );
+/** The contract's backer interest (Queue._fundOne): vouch amount x rate, agree half of it; a backer can lose the pledge. */
+export const ifBacked = (amount: bigint, rateBps: number, agree = false) => ({
+  amount: amount.toString(),
+  couldLose: amount.toString(),
+  wouldEarn: (
+    (amount * BigInt(rateBps)) /
+    (agree ? 20_000n : 10_000n)
+  ).toString(),
+});
 const STATUS = ["Forming", "Active", "Completed", "Cancelled"] as const;
 const RULE_FIELDS = [
   ["ownLtvBps", "Share of your savings you can borrow"],
@@ -205,6 +278,7 @@ type StateRaw = {
     cooldownEpochs: number;
   };
   rules: Record<string, number>;
+  manager: Address;
   loanCount: bigint;
   proposalCount: bigint;
 };
@@ -351,6 +425,110 @@ export const createFujiApp = async (env: FujiEnv) => {
     return a;
   };
 
+  // ---------- test-vault demo controls (round 3): real admin transactions on the mock vaults
+  const vaultCfg = {
+    aaveApy: 0,
+    lpApy: 0,
+    speedup: 1,
+    owned: false,
+    note: null as string | null,
+  };
+  const [aaveVault, lpVault] = await Promise.all([
+    read<Address>(c.factory, abis.factory, "AAVE_VAULT"),
+    read<Address>(c.factory, abis.factory, "LP_VAULT"),
+  ]);
+  const vaultAbi = mockLpVaultAbi as Abi;
+  // Never touch the tutorial chain's vaults (its end numbers depend on them): skip when pointed at its deployment file.
+  const tutorialVaults =
+    resolve(path) ===
+    resolve(
+      new URL("../../../deployments/local.json", import.meta.url).pathname,
+    );
+  const configureVaults = async () => {
+    const owners = await Promise.all(
+      [aaveVault, lpVault].map((v) => read<Address>(v, vaultAbi, "owner")),
+    );
+    vaultCfg.owned =
+      !tutorialVaults &&
+      owners.every((o) => o.toLowerCase() === admin.address.toLowerCase());
+    if (tutorialVaults)
+      console.warn(
+        "app: pointed at the tutorial's deployment; leaving its test vaults alone",
+      );
+    const want = [
+      [aaveVault, env.VAULT_AAVE_APY_BPS],
+      [lpVault, env.VAULT_LP_APY_BPS],
+    ] as const;
+    if (vaultCfg.owned && env.VAULT_SPEEDUP > 0) {
+      const t = BigInt(await now());
+      for (const [v, apy] of want) {
+        const [cur, sp] = await Promise.all([
+          read<number>(v, vaultAbi, "apyBps"),
+          read<number>(v, vaultAbi, "speedup"),
+        ]);
+        if (Number(cur) !== apy)
+          await adminTx({
+            to: v,
+            abi: vaultAbi,
+            functionName: "setApy",
+            args: [apy, t],
+          });
+        if (Number(sp) !== env.VAULT_SPEEDUP)
+          await adminTx({
+            to: v,
+            abi: vaultAbi,
+            functionName: "setSpeedup",
+            args: [env.VAULT_SPEEDUP],
+          });
+      }
+      console.log(
+        `app: test vaults set (Aave ${env.VAULT_AAVE_APY_BPS / 100}%, LP ${env.VAULT_LP_APY_BPS / 100}%, speed-up ${env.VAULT_SPEEDUP})`,
+      );
+    } else if (!vaultCfg.owned && !tutorialVaults)
+      console.warn("app: the admin does not own the test vaults; leaving them");
+    const [a, l, sp] = await Promise.all([
+      read<number>(aaveVault, vaultAbi, "apyBps"),
+      read<number>(lpVault, vaultAbi, "apyBps"),
+      read<number>(aaveVault, vaultAbi, "speedup"),
+    ]);
+    vaultCfg.aaveApy = Number(a);
+    vaultCfg.lpApy = Number(l);
+    vaultCfg.speedup = Number(sp);
+    const perRound = Math.round((120 * vaultCfg.speedup) / 86_400);
+    vaultCfg.note =
+      vaultCfg.speedup > 1
+        ? `Test vaults: interest is sped up so a 2-minute round earns about ${perRound >= 28 && perRound <= 31 ? "a month" : `${perRound} days`} of interest${vaultCfg.owned && env.VAULT_SPEEDUP > 0 && env.LP_MOVE_EVERY_MS > 0 ? ", and the server moves the LP pool's price up and down now and then" : ""}.`
+        : null;
+  };
+  const vaultsReady = configureVaults().catch((e) =>
+    console.error(`app: test vaults: ${firstLine(e)}`),
+  );
+  // LP pool price moves from the keeper loop: up a little three times out of four, down a little the fourth.
+  let lpMoves = 0;
+  let lpMovedAt = Date.now();
+  const moveLp = async (force = false) => {
+    if (
+      !vaultCfg.owned ||
+      env.VAULT_SPEEDUP === 0 ||
+      env.LP_MOVE_EVERY_MS === 0
+    )
+      return null;
+    if (!force && Date.now() - lpMovedAt < env.LP_MOVE_EVERY_MS) return null;
+    lpMovedAt = Date.now();
+    const bps =
+      lpMoves++ % 4 === 3 ? -env.LP_MOVE_DOWN_BPS : env.LP_MOVE_UP_BPS;
+    await adminTx({
+      to: lpVault,
+      abi: vaultAbi,
+      functionName: "shock",
+      args: [bps],
+    });
+    console.log(
+      `keeper: LP pool moved ${bps > 0 ? "up" : "down"} ${Math.abs(bps) / 100}%`,
+    );
+    return bps;
+  };
+
   // ---------- practice members: keys from the admin key + creator + the creator's circle number + index
   const practiceKeys = (creator: Address, n: number) =>
     Array.from({ length: PRACTICE_COUNT }, (_, i) =>
@@ -383,7 +561,10 @@ export const createFujiApp = async (env: FujiEnv) => {
     const names: Names = new Map(Object.entries(store.names));
     if (circle)
       (await practiceOf(circle)).forEach((a, i) => {
-        names.set(a.address.toLowerCase(), `Practice member ${i + 1}`);
+        names.set(
+          a.address.toLowerCase(),
+          PRACTICE_NAMES[i] ?? `Practice member ${i + 1}`,
+        );
       });
     return names;
   };
@@ -547,6 +728,8 @@ export const createFujiApp = async (env: FujiEnv) => {
         youVoted: p.youVoted,
         open: p.status === 1 && open.includes(p.id),
         status: snap?.status ?? "Unknown",
+        kind: snap?.kind ?? "other",
+        plan: snap?.plan ?? null,
       };
     });
     const free = me ? me.savings - me.pledgedOut : 0n;
@@ -558,6 +741,15 @@ export const createFujiApp = async (env: FujiEnv) => {
       free > 0n;
     const requests = queue.map((id) => {
       const l = f.loans.find((x) => x.id === Number(id));
+      const rateBps = Number(
+        (l as { offeredRateBps?: number } | undefined)?.offeredRateBps ?? 0,
+      );
+      const myAgree =
+        l?.agreers.find((b) => b.backer.toLowerCase() === user.toLowerCase())
+          ?.amount ?? 0n;
+      const iVouched = !!l?.vouchers.some(
+        (b) => b.backer.toLowerCase() === user.toLowerCase(),
+      );
       const pledged = l
         ? [...l.vouchers, ...l.agreers].reduce((x, b) => x + b.amount, 0n)
         : 0n;
@@ -571,10 +763,28 @@ export const createFujiApp = async (env: FujiEnv) => {
         repayRounds: l?.repayEpochs ?? 0,
         needsBacking: need.toString(),
         backedSoFar: pledged.toString(),
-        rate: `${Number((l as { offeredRateBps?: number } | undefined)?.offeredRateBps ?? 0) / 100}%`,
+        rate: `${rateBps / 100}%`,
+        rateBps,
         mine,
-        canBack: canBackAny && !mine && need > 0n,
+        canBack: canBackAny && !mine && need > 0n && myAgree === 0n,
         maxBack: minB(need, free).toString(),
+        canAgree:
+          canBackAny &&
+          !mine &&
+          need > 0n &&
+          !iVouched &&
+          f.contribution - myAgree > 0n,
+        maxAgree: minB(minB(need, free), f.contribution - myAgree).toString(),
+        // The suggested amount: what you can put in now, or what the request still needs.
+        ifYouBack: ifBacked(
+          canBackAny && !mine && need > 0n ? minB(need, free) : need,
+          rateBps,
+        ),
+        ifYouAgree: ifBacked(
+          minB(need, f.contribution - myAgree),
+          rateBps,
+          true,
+        ),
       };
     });
     const isCreator = s.creator.toLowerCase() === user.toLowerCase();
@@ -590,6 +800,75 @@ export const createFujiApp = async (env: FujiEnv) => {
     ).length;
     const nameOf = (a: Address) =>
       names.get(a.toLowerCase()) ?? `${a.slice(0, 6)}…${a.slice(-4)}`;
+    // ---------- fund manager and money plan (round 3)
+    const mgr = f.manager?.address ?? null;
+    const isManager = !!mgr && mgr.toLowerCase() === user.toLowerCase();
+    const openOf = (pred: (p: Facts["proposals"][number]) => boolean) =>
+      f.proposals.some((p) => pred(p) && p.status === 1 && open.includes(p.id));
+    const openPlan = openOf((p) => p.kind === 1);
+    const openAppoint = openOf((p) => p.kind === 2 && p.target !== zeroAddress);
+    const openFire = openOf((p) => p.kind === 2 && p.target === zeroAddress);
+    const proposedBy = (a: string) =>
+      f.proposals.some(
+        (p) =>
+          p.proposer.toLowerCase() === a.toLowerCase() && p.epoch === round,
+      );
+    const proposedThisRound = proposedBy(user);
+    const proposeBase =
+      actionOk && isMember && (me?.paidCount ?? 0) >= fx.minSaveEpochs;
+    const canPropose = proposeBase && !proposedThisRound;
+    const proposeReason = canPropose
+      ? null
+      : s.status === 0
+        ? "Changes can be suggested once the circle has started."
+        : !active
+          ? "This circle is not running any more."
+          : !isMember
+            ? "Only members can suggest changes."
+            : (me?.paidCount ?? 0) < fx.minSaveEpochs
+              ? `You need ${fx.minSaveEpochs} rounds of savings before you can suggest a change (you have ${me?.paidCount ?? 0}).`
+              : pending
+                ? "The last round is still closing. Try again in a moment."
+                : lockWindow
+                  ? "Suggestions are paused until this round closes."
+                  : "You already suggested a change this round. You can suggest another next round.";
+    const managerName = mgr ? nameOf(mgr) : null;
+    const planNote =
+      mgr && !isManager
+        ? `Only the fund manager, ${managerName}, can suggest a new money plan. Everyone still votes on it.`
+        : openPlan
+          ? "A new money plan is already up for a vote this round."
+          : null;
+    const alloc = f.alloc;
+    const preset = sameAlloc(alloc, PRESET_SAFE) ? PRESET_GROWTH : PRESET_SAFE;
+    const mgrMember = mgr
+      ? f.members.find((m) => m.address.toLowerCase() === mgr.toLowerCase())
+      : undefined;
+    const mgrPractice = !!mgr && practiceSet.has(mgr.toLowerCase());
+    const askReason = !mgr
+      ? "There is no fund manager yet."
+      : !mgrPractice
+        ? "The fund manager is not a practice member."
+        : !isMember
+          ? "Only members can ask the fund manager."
+          : openPlan
+            ? "A new money plan is already up for a vote this round."
+            : proposedBy(mgr as string)
+              ? `${managerName} already suggested a change this round. Try again next round.`
+              : !actionOk
+                ? "Proposals are paused until this round closes."
+                : mgrMember?.status !== 1 ||
+                    (mgrMember?.paidCount ?? 0) < fx.minSaveEpochs
+                  ? `${managerName} cannot suggest a change yet.`
+                  : null;
+    const lastRebalance = [...((await log.logs(circle)) ?? [])]
+      .reverse()
+      .find((l) => l.eventName === "Rebalanced");
+    const since = (nowV: bigint, key: string) =>
+      (
+        nowV -
+        (lastRebalance ? BigInt(lastRebalance.args[key] as bigint) : nowV)
+      ).toString();
     const rules = RULE_FIELDS.map(([k, label], field) => ({
       field,
       label,
@@ -598,6 +877,10 @@ export const createFujiApp = async (env: FujiEnv) => {
     }));
     return {
       ...snapshot,
+      members: snapshot.members.map((m) => ({
+        ...m,
+        practice: practiceSet.has(m.address.toLowerCase()),
+      })),
       live: {
         now: t,
         startsAt: start,
@@ -633,6 +916,7 @@ export const createFujiApp = async (env: FujiEnv) => {
           ownLimit: ownLimit.toString(),
           maxRepayRounds: Math.max(0, maxRepay),
           offeredRateBps: DEFAULTS.offeredRateBps,
+          rateLimits: { minBps: 0, maxBps: MAX_OFFERED_RATE },
           canBorrow: reasonNoBorrow === null,
           reasonNoBorrow,
           activeLoan: loan
@@ -656,8 +940,21 @@ export const createFujiApp = async (env: FujiEnv) => {
           canRepayAll: !!loan && loan.status === 2 && isMember && active,
           canVote:
             voteOk && isMember && proposals.some((p) => p.open && !p.youVoted),
-          canPropose:
-            actionOk && isMember && (me?.paidCount ?? 0) >= fx.minSaveEpochs,
+          canPropose,
+          proposedThisRound,
+          proposeReason,
+          isManager,
+          canProposeManager:
+            canPropose &&
+            !isManager &&
+            !openAppoint &&
+            f.members.some(
+              (m) =>
+                m.status === 1 &&
+                m.address.toLowerCase() !== (mgr ?? "").toLowerCase(),
+            ),
+          canRemoveManager: canPropose && !!mgr && !isManager && !openFire,
+          canProposePlan: canPropose && (!mgr || isManager) && !openPlan,
           canLeave:
             actionOk &&
             isMember &&
@@ -676,6 +973,47 @@ export const createFujiApp = async (env: FujiEnv) => {
         requests,
         proposals,
         rules,
+        managerCandidates: f.members
+          .filter(
+            (m) =>
+              m.status === 1 &&
+              m.address.toLowerCase() !== (mgr ?? "").toLowerCase(),
+          )
+          .map((m) => ({
+            address: m.address,
+            name:
+              m.address.toLowerCase() === user.toLowerCase()
+                ? "You"
+                : nameOf(m.address),
+            practice: practiceSet.has(m.address.toLowerCase()),
+          })),
+        plan: { current: alloc, limits: PLAN_LIMITS, parts: PLAN_PARTS },
+        planNote,
+        canAskManagerPlan: askReason === null,
+        askManagerPlanReason: askReason,
+        askManagerPlanLabel: mgrPractice
+          ? `Ask ${managerName} to propose a new money plan`
+          : null,
+        managerPreset: mgrPractice ? preset : null,
+        managerPresetNote: mgrPractice
+          ? preset === PRESET_SAFE
+            ? `A little safer: ${planText(preset)}.`
+            : `A little more growth: ${planText(preset)}.`
+          : null,
+        investments: {
+          earnedSoFar: f.pot.earned.toString(),
+          aave: {
+            value: f.pot.aave.toString(),
+            apyBps: vaultCfg.aaveApy,
+            earnedThisRound: since(f.pot.aave, "aaveValue"),
+          },
+          lp: {
+            value: f.pot.lp.toString(),
+            apyBps: vaultCfg.lpApy,
+            changeThisRound: since(f.pot.lp, "lpValue"),
+          },
+          note: vaultCfg.note,
+        },
         isCreator,
         practiceMembers,
         practiceInvited,
@@ -687,6 +1025,7 @@ export const createFujiApp = async (env: FujiEnv) => {
                 address: a,
                 name: nameOf(a),
                 joined: memberSet.has(a.toLowerCase()),
+                practice: practiceSet.has(a.toLowerCase()),
               }))
             : [],
         joinRequests:
@@ -764,6 +1103,10 @@ export const createFujiApp = async (env: FujiEnv) => {
 
   // ---------- keeper
   const keeperTick = async () => {
+    await vaultsReady;
+    await moveLp().catch((e) =>
+      console.error(`keeper: LP move: ${firstLine(e)}`),
+    );
     // Keeps the circle index fresh, so a new circle's logs are scanned from (about) its own block.
     await log.syncFactory();
     const list = await read<readonly Address[]>(
@@ -1344,6 +1687,58 @@ export const createFujiApp = async (env: FujiEnv) => {
     return ctx.json(await view(circle, user));
   });
 
+  // Item 3: the practice fund manager proposes a preset money plan (its own real propose transaction).
+  app.post("/circles/:address/practice-plan", async (ctx) => {
+    const circle = await isCircle(ctx.req.param("address"));
+    const user = ctx.get("user");
+    const v = await view(circle, user);
+    if (!v.live.canAskManagerPlan || !v.live.managerPreset || !v.manager)
+      throw new AppError(
+        409,
+        v.live.askManagerPlanReason ?? "That cannot be done right now.",
+      );
+    const s = await state(circle);
+    const acct = (await practiceOf(circle, s.creator)).find(
+      (a) => a.address.toLowerCase() === s.manager.toLowerCase(),
+    );
+    if (!acct)
+      throw new AppError(409, "The fund manager is not a practice member.");
+    await wait(
+      await fire(acct, {
+        to: circle,
+        abi: abis.circle,
+        functionName: "propose",
+        args: [1, encodeAlloc(v.live.managerPreset)],
+      }),
+    );
+    return ctx.json(await view(circle, user));
+  });
+
+  // Item 5: the risk and the reward of backing `amount` (the contract's own formula; see ifBacked).
+  app.get("/circles/:address/requests/:id/if-you-back", async (ctx) => {
+    const circle = await isCircle(ctx.req.param("address"));
+    const id = Number(ctx.req.param("id"));
+    const raw = ctx.req.query("amount") ?? "";
+    const how = ctx.req.query("how") === "agree" ? "agree" : "vouch";
+    if (!Number.isInteger(id) || id < 1 || !/^\d{1,30}$/.test(raw))
+      throw new AppError(400, "Give a loan request and an amount.");
+    const s = await state(circle);
+    if (id > Number(s.loanCount))
+      throw new AppError(404, "There is no such loan request.");
+    const l = await read<{ offeredRateBps: number }>(
+      circle,
+      abis.circle,
+      "getLoan",
+      [BigInt(id)],
+    );
+    const rateBps = Number(l.offeredRateBps);
+    return ctx.json({
+      how,
+      ...ifBacked(BigInt(raw), rateBps, how === "agree"),
+      rateBps,
+    });
+  });
+
   const nameRows = (
     q: (a: string, n: string) => boolean,
     limit: number,
@@ -1394,6 +1789,9 @@ export const createFujiApp = async (env: FujiEnv) => {
     stop,
     keeperTick,
     practiceKeys,
+    vaultsReady,
+    vaults: { aave: aaveVault, lp: lpVault },
+    moveLp,
     encodeRule: (field: number, bps: number) =>
       encodeAbiParameters(
         [{ type: "uint8" }, { type: "uint256" }],

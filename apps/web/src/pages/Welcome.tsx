@@ -1,20 +1,19 @@
-import { Handshake, PiggyBank, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { Button, Wordmark } from "../components/ui";
 
 const points = [
   {
-    icon: PiggyBank,
+    image: "/spot-save.webp",
     title: "Save together",
     text: "Everyone puts in the same amount each round. The pot is invested and earns for the group.",
   },
   {
-    icon: Handshake,
+    image: "/spot-borrow.webp",
     title: "Borrow with backing",
     text: "Borrow up to 90% of your own savings, and more when friends back you.",
   },
   {
-    icon: ShieldCheck,
+    image: "/spot-safe.webp",
     title: "Only backers carry the risk",
     text: "If someone stops paying, their savings and their backers cover it. Nobody else loses a thing.",
   },
@@ -52,26 +51,31 @@ export function Welcome({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <div className="mx-auto flex min-h-dvh max-w-6xl flex-col px-4 py-5 sm:px-6">
+    <div className="mx-auto flex min-h-dvh max-w-6xl flex-col px-4 py-4 sm:px-6 sm:py-5">
       <Wordmark />
-      <main className="flex-1 py-3 md:py-8">
-        <div className="grid items-center gap-2 md:grid-cols-[1.05fr_1fr] md:gap-10">
+      <main className="flex-1 pt-2 pb-8 md:py-8">
+        <div className="grid items-center gap-1 md:grid-cols-[1.05fr_1fr] md:gap-10">
           <div className="-mx-4 sm:mx-0 md:order-2">
             <Hero />
           </div>
           <div className="md:order-1">
-            <h1 className="font-display text-[2.625rem] leading-[1.02] font-bold tracking-tight text-brand-deep sm:text-6xl">
+            <h1 className="font-display text-[2.5rem] leading-[1.02] font-bold tracking-tight text-brand-deep sm:text-6xl">
               Save your money together.
             </h1>
-            <p className="mt-4 max-w-[32rem] text-lg leading-relaxed text-ink">
+            <p className="mt-3 max-w-[32rem] text-base leading-relaxed text-ink sm:mt-4 sm:text-lg">
               Kuber is a savings circle: a small group saves the same amount
               each round, and members can borrow from the pot with friends
               backing them.
             </p>
-            <div className="mt-6 grid gap-3 sm:max-w-sm">
-              {onSignIn && <Button onClick={onSignIn}>Sign in</Button>}
+            <div className="mt-5 grid gap-2 sm:max-w-sm sm:gap-3">
+              {onSignIn && (
+                <Button className="w-full" onClick={onSignIn}>
+                  Sign in
+                </Button>
+              )}
               <Button
                 variant={onSignIn ? "secondary" : "primary"}
+                className="w-full"
                 busy={busy}
                 disabled={busy}
                 onClick={async () => {
@@ -105,12 +109,21 @@ export function Welcome({
           </div>
         </div>
 
-        <ul className="mt-10 grid gap-5 border-t border-line pt-8 md:mt-14 md:grid-cols-3 md:gap-8">
-          {points.map(({ icon: Icon, title, text }) => (
-            <li key={title} className="flex gap-3 md:block">
-              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-accent-soft text-brand ring-1 ring-accent/60 md:mb-3">
-                <Icon aria-hidden className="size-5" />
-              </span>
+        <ul className="mt-8 grid gap-3 border-t border-line pt-6 md:mt-14 md:grid-cols-3 md:gap-5">
+          {points.map(({ image, title, text }) => (
+            <li
+              key={title}
+              className="arrive flex items-center gap-4 rounded-2xl border border-line bg-surface p-3 shadow-[0_10px_30px_var(--color-shadow)] md:block md:p-5"
+            >
+              <img
+                src={image}
+                width={320}
+                height={320}
+                alt=""
+                aria-hidden="true"
+                loading="lazy"
+                className="size-20 shrink-0 rounded-xl object-cover md:mb-3 md:size-24"
+              />
               <div>
                 <p className="font-display text-lg font-bold text-ink">
                   {title}

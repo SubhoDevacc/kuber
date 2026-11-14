@@ -34,10 +34,10 @@ Tap **Start**, pick a name, and the tutorial opens. It is a real practice circle
 | Chapter | What you do | What you see |
 |---|---|---|
 | 1. Join and save | Join; rounds close | Everyone saves 100 a round; the pot is put to work |
-| 2. Borrow | Ask for 350 | 270 against your own savings, 80 backed by Bob |
-| 3. Repay | Two payments | Bob earns 6.40 for backing you |
-| 4. Vote | Vote on a rule | A change passes with more than half of the members |
-| 5. A member stops paying | Watch | Dave's own savings pay 300 first; his backers Cara and Erin lose 30 and 20; Frank and you lose nothing |
+| 2. Borrow | Ask for 350 | 270 against your own savings, 80 backed by Bala |
+| 3. Repay | Two payments | Bala earns 6.40 for backing you |
+| 4. Vote | Vote Bala in as fund manager; vote on a rule | Each change passes with more than half of the members; Bala's fee is 0%, so no one's money changes |
+| 5. A member stops paying | Watch | Dev's own savings pay 300 first; his backers Chitra and Esha lose 30 and 20; Farhan and you lose nothing |
 | 6. Share-out | Collect | You get 712.04 back from 700 saved |
 
 These numbers are the worked example in `docs/SPEC.md` §4. The contract tests and the server's end-to-end test both check them to the last unit.

@@ -37,6 +37,28 @@ export type Member = {
   pledged: string;
   lost: string;
   debt: string;
+  /** The member the group voted in as fund manager. Optional for older servers. */
+  isManager?: boolean;
+  /** Run by Kuber (real app). Optional. */
+  practice?: boolean;
+};
+
+/** The fund manager: chooses the money plan (still voted on by everyone). */
+export type Manager = {
+  address: Hex;
+  name: string;
+  /** Track record from the registry (`managerStats`), when the server sends it. */
+  roundsManaged?: number;
+  /** e.g. "+0.42%", null before the first round. */
+  averagePerRound?: string | null;
+};
+
+/** How the pot is split between loans, Aave, the LP pool and cash, in basis points (sum 10,000). */
+export type MoneyPlan = {
+  loan: number;
+  aave: number;
+  lp: number;
+  cash: number;
 };
 
 export type Loan = {
@@ -54,6 +76,8 @@ export type Proposal = {
   no: number;
   status: string;
   youVoted: boolean;
+  kind?: "rule" | "plan" | "manager" | "other";
+  plan?: MoneyPlan | null;
 };
 
 export type CircleSnapshot = {
@@ -70,7 +94,16 @@ export type CircleSnapshot = {
     invested: string;
     lent: string;
     earned: string;
+    /** This round's change per part (real app), when the server sends it. Signed base-unit strings. */
+    aaveEarned?: string;
+    lpChange?: string;
+    /** A plain line about the test vaults. */
+    note?: string | null;
   };
+  /** null = no fund manager; undefined = an older server that does not say. */
+  manager?: Manager | null;
+  /** The money plan now in force, when the server sends it. */
+  plan?: MoneyPlan;
   you: null | {
     savings: string;
     wallet: string;

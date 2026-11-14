@@ -44,6 +44,8 @@ type Model = {
   })[];
   loans: CircleSnapshot["loans"];
   proposals: CircleSnapshot["proposals"];
+  /** The fund manager's name, or null. */
+  manager: string | null;
 };
 
 type Step = {
@@ -88,7 +90,7 @@ const steps: Step[] = [
     chapter: 1,
     id: "intro",
     title: "Meet your practice circle",
-    body: "Six people each save 100 test mUSDC per round, for 7 rounds. Bob, Cara, Dave, Erin and Frank are practice members run by Kuber. The empty seat is yours.",
+    body: "Six people each save 100 test mUSDC per round, for 7 rounds. Bala, Chitra, Dev, Esha and Farhan are practice members run by Kuber. The empty seat is yours.",
     action: null,
     waitNote: null,
     apply: () => ({
@@ -194,7 +196,7 @@ const steps: Step[] = [
     chapter: 2,
     id: "request-loan",
     title: "Ask for a loan of 350",
-    body: "You can borrow up to 90% of your own savings: 270. The other 80 needs someone to back you, and Bob has said yes.",
+    body: "You can borrow up to 90% of your own savings: 270. The other 80 needs someone to back you, and Bala has said yes.",
     action: {
       label: "Ask to borrow 350",
       target: "circle",
@@ -213,7 +215,7 @@ const steps: Step[] = [
         },
         {
           id: 2,
-          borrower: "Dave",
+          borrower: "Dev",
           amount: "350000000",
           status: "Needs backing",
           backers: [],
@@ -224,47 +226,52 @@ const steps: Step[] = [
         rows: [
           row("From your savings", f(0n), f(270n * M)),
           row("Needs backing", f(0n), f(80n * M)),
+          row(
+            "Bala's risk for backing you",
+            "—",
+            "Bala could lose up to 80.00 · Bala earns 6.40",
+          ),
         ],
-        note: "Dave asked for 350 too.",
+        note: "Dev asked for 350 too.",
       };
     },
   },
   {
     chapter: 2,
     id: "backed",
-    title: "Bob backs your loan",
-    body: "Bob puts 80 of his savings behind you. If you don't repay, he covers up to 80. If you do, he earns 6.40 for taking the risk.",
+    title: "Bala backs your loan",
+    body: "Bala puts 80 of his savings behind you. If you don't repay, he covers up to 80. If you do, he earns 6.40 for taking the risk.",
     action: null,
-    waitNote: "Bob is backing you, then round 3 closes…",
+    waitNote: "Bala is backing you, then round 3 closes…",
     apply: (m) => {
-      by(m, "Bob").pledged = 80n * M;
-      by(m, "Cara").pledged = 30n * M;
-      by(m, "Erin").pledged = 50n * M;
-      by(m, "Bob").role = "Backer";
-      by(m, "Cara").role = "Backer";
-      by(m, "Erin").role = "Backer";
+      by(m, "Bala").pledged = 80n * M;
+      by(m, "Chitra").pledged = 30n * M;
+      by(m, "Esha").pledged = 50n * M;
+      by(m, "Bala").role = "Backer";
+      by(m, "Chitra").role = "Backer";
+      by(m, "Esha").role = "Backer";
       by(m, "you").role = "Borrower";
-      by(m, "Dave").role = "Borrower";
+      by(m, "Dev").role = "Borrower";
       m.loans[0].backers = [
-        { name: "Bob", amount: "80000000", earned: "0", lost: "0" },
+        { name: "Bala", amount: "80000000", earned: "0", lost: "0" },
       ];
       m.loans[1].backers = [
-        { name: "Cara", amount: "30000000", earned: "0", lost: "0" },
-        { name: "Erin", amount: "50000000", earned: "0", lost: "0" },
+        { name: "Chitra", amount: "30000000", earned: "0", lost: "0" },
+        { name: "Esha", amount: "50000000", earned: "0", lost: "0" },
       ];
       m.loans[0].status = "Ready to collect";
       m.loans[1].status = "Repaying";
-      by(m, "Dave").loanOwed = 364_500_000n;
+      by(m, "Dev").loanOwed = 364_500_000n;
       m.claimable = 350n * M;
       m.round = 4;
       return {
         title: "Your loan was approved",
         rows: [
           row("Needs backing", f(80n * M), f(0n), "good"),
-          row("Bob's backing", f(0n), f(80n * M)),
+          row("Bala's backing", f(0n), f(80n * M)),
           row("Your loan", "Waiting", "Ready to collect", "good"),
         ],
-        note: "Both loans fit in the money kept for loans, so both were approved when round 3 closed. Cara and Erin back Dave.",
+        note: "Both loans fit in the money kept for loans, so both were approved when round 3 closed. Chitra and Esha back Dev.",
       };
     },
   },
@@ -292,7 +299,7 @@ const steps: Step[] = [
           row("Your wallet", f(w), f(m.wallet), "good"),
           row("You owe", f(0n), f(364_500_000n)),
         ],
-        note: "You repay 364.50 in two parts: the 350, plus 8.10 for the group and 6.40 for Bob.",
+        note: "You repay 364.50 in two parts: the 350, plus 8.10 for the group and 6.40 for Bala.",
       };
     },
   },
@@ -310,10 +317,10 @@ const steps: Step[] = [
     waitNote: "Round 4 is closing…",
     apply: (m) => {
       const you = by(m, "you");
-      saveRound(m, ["Dave"]);
+      saveRound(m, ["Dev"]);
       m.wallet -= 182_250_000n;
       you.loanOwed = 182_250_000n;
-      by(m, "Dave").status = "1 payment behind";
+      by(m, "Dev").status = "1 payment behind";
       m.loans[0].backers[0].earned = "3200000";
       m.round = 5;
       return {
@@ -321,9 +328,9 @@ const steps: Step[] = [
         rows: [
           row("You owe", f(364_500_000n), f(182_250_000n), "good"),
           row("Your savings", f(300n * M), f(400n * M), "good"),
-          row("Bob has earned", f(0n), f(3_200_000n), "good"),
+          row("Bala has earned", f(0n), f(3_200_000n), "good"),
         ],
-        note: "Dave didn't pay this round. Keep an eye on him.",
+        note: "Dev didn't pay this round. Keep an eye on him.",
       };
     },
   },
@@ -340,55 +347,94 @@ const steps: Step[] = [
     },
     waitNote: "Round 5 is closing…",
     apply: (m) => {
-      saveRound(m, ["Dave"]);
+      saveRound(m, ["Dev"]);
       m.wallet -= 182_250_000n;
       by(m, "you").loanOwed = 0n;
       by(m, "you").role = null;
-      by(m, "Bob").pledged = 0n;
-      by(m, "Bob").role = null;
-      by(m, "Dave").status = "2 payments behind";
+      by(m, "Bala").pledged = 0n;
+      by(m, "Bala").role = null;
+      by(m, "Dev").status = "2 payments behind";
       m.loans[0].status = "Repaid";
       m.loans[0].backers[0].earned = "6400000";
       m.rewards = 0n;
-      m.proposals.push({
-        id: 1,
-        title: "Keep the money plan as it is until the end",
-        yes: 1,
-        no: 0,
-        status: "Open",
-        youVoted: false,
-      });
+      m.proposals.push(
+        {
+          id: 1,
+          title: "Make Bala the fund manager",
+          yes: 1,
+          no: 0,
+          status: "Voting",
+          youVoted: false,
+          kind: "manager",
+        },
+        {
+          id: 2,
+          title: "Keep the money plan as it is until the end",
+          yes: 1,
+          no: 0,
+          status: "Voting",
+          youVoted: false,
+          kind: "rule",
+        },
+      );
       m.round = 6;
       return {
         title: "Loan repaid",
         rows: [
           row("You owe", f(182_250_000n), f(0n), "good"),
-          row("Bob has earned", f(3_200_000n), f(6_400_000n), "good"),
-          row("Bob's backing", f(80n * M), f(0n)),
+          row("Bala has earned", f(3_200_000n), f(6_400_000n), "good"),
+          row("Bala's backing", f(80n * M), f(0n)),
         ],
-        note: "Bob's 80 is free again, and he keeps 6.40 for backing you.",
+        note: "Bala's 80 is free again, and he keeps 6.40 for backing you.",
       };
     },
   },
   {
     chapter: 4,
-    id: "vote",
-    title: "Vote on Erin's idea",
-    body: "Erin proposes keeping the money plan as it is until the circle ends. Every member gets one vote. This vote doesn't move anyone's money.",
+    id: "manager",
+    title: "Vote in a fund manager",
+    body: "Chitra suggests making Bala the circle's fund manager. A fund manager suggests how the pot is invested (the money plan: ready to lend, Aave, LP pool, cash), and everyone still votes on each plan. Bala's fee stays 0%, so nobody's money changes. Vote yes to make Bala the fund manager.",
     action: {
       label: "Vote yes",
       target: "circle",
       functionName: "vote",
       args: ["1", true],
     },
+    waitNote: "Recording the votes…",
+    apply: (m) => {
+      Object.assign(m.proposals[0], { yes: 5, youVoted: true });
+      return {
+        title: "Your vote is in",
+        rows: [
+          row("Yes votes", "1", "5", "good"),
+          row("No votes", "0", "0"),
+          row("Fund manager", "None", "Bala, when round 6 closes"),
+        ],
+        note: "More than half of the members said yes. Like every change, it applies when the round closes.",
+      };
+    },
+  },
+  {
+    chapter: 4,
+    id: "vote",
+    title: "Vote on Esha's idea",
+    body: "Esha proposes keeping the money plan as it is until the circle ends. Every member gets one vote. This vote doesn't move anyone's money.",
+    action: {
+      label: "Vote yes",
+      target: "circle",
+      functionName: "vote",
+      args: ["2", true],
+    },
     waitNote: "Counting the votes…",
     apply: (m) => {
-      Object.assign(m.proposals[0], {
+      Object.assign(m.proposals[0], { status: "Applied" });
+      Object.assign(m.proposals[1], {
         yes: 5,
         no: 0,
         status: "Passed",
         youVoted: true,
       });
+      m.manager = "Bala";
       return {
         title: "The vote passed",
         rows: [
@@ -402,43 +448,43 @@ const steps: Step[] = [
   },
   {
     chapter: 5,
-    id: "dave-behind",
-    title: "Dave is 2 payments behind",
-    body: "Dave stopped paying, and he still owes his loan. He can catch up with a small fine. If he misses a third payment, he is paused.",
+    id: "default-behind",
+    title: "Dev is 2 payments behind",
+    body: "Dev stopped paying, and he still owes his loan. He can catch up with a small fine. If he misses a third payment, he is paused.",
     action: null,
     waitNote: "Round 6 is closing…",
     apply: (m) => {
-      saveRound(m, ["Dave"]);
-      by(m, "Dave").status = "3 payments behind";
+      saveRound(m, ["Dev"]);
+      by(m, "Dev").status = "3 payments behind";
       m.round = 7;
       return {
-        title: "Dave missed another payment",
+        title: "Dev missed another payment",
         rows: [
-          row("Dave", "2 payments behind", "3 payments behind", "bad"),
+          row("Dev", "2 payments behind", "3 payments behind", "bad"),
           row("Your savings", f(500n * M), f(600n * M), "good"),
         ],
-        note: "Three missed payments means Dave is paused when this round closes.",
+        note: "Three missed payments means Dev is paused when this round closes.",
       };
     },
   },
   {
     chapter: 5,
-    id: "dave-paused",
-    title: "Dave's loan is covered",
-    body: "Dave is paused. His loan is covered in a fixed order: his own savings first, then the people who chose to back him. Nobody else pays.",
+    id: "default-paused",
+    title: "Dev's loan is covered",
+    body: "Dev is paused. His loan is covered in a fixed order: his own savings first, then the people who chose to back him. Nobody else pays.",
     action: null,
     waitNote: "Round 7 is closing…",
     apply: (m) => {
-      saveRound(m, ["Dave"]);
-      const dave = by(m, "Dave");
-      dave.lost = 300n * M;
-      dave.savings = 0n;
-      dave.status = "Paused";
-      dave.loanOwed = 0n;
-      dave.debt = 106_749_998n;
+      saveRound(m, ["Dev"]);
+      const dev = by(m, "Dev");
+      dev.lost = 300n * M;
+      dev.savings = 0n;
+      dev.status = "Paused";
+      dev.loanOwed = 0n;
+      dev.debt = 106_749_998n;
       for (const [name, lost] of [
-        ["Cara", 30n],
-        ["Erin", 20n],
+        ["Chitra", 30n],
+        ["Esha", 20n],
       ] as const) {
         const x = by(m, name);
         x.lost = lost * M;
@@ -450,15 +496,15 @@ const steps: Step[] = [
       m.loans[1].backers[1].lost = "20000000";
       m.status = "Completed";
       return {
-        title: "Who paid for Dave's loan",
+        title: "Who paid for Dev's loan",
         rows: [
-          row("Dave's savings", f(300n * M), f(0n), "bad"),
-          row("Cara lost (backed Dave)", f(0n), f(30n * M), "bad"),
-          row("Erin lost (backed Dave)", f(0n), f(20n * M), "bad"),
-          row("Frank lost", f(0n), f(0n), "good"),
+          row("Dev's savings", f(300n * M), f(0n), "bad"),
+          row("Chitra lost (backed Dev)", f(0n), f(30n * M), "bad"),
+          row("Esha lost (backed Dev)", f(0n), f(20n * M), "bad"),
+          row("Farhan lost", f(0n), f(0n), "good"),
           row("You lost", f(0n), f(0n), "good"),
         ],
-        note: "Only Dave and the two people who backed him lost money. Dave now owes 106.75, taken from anything Kuber pays him later.",
+        note: "Only Dev and the two people who backed him lost money. Dev now owes 106.75, taken from anything Kuber pays him later.",
       };
     },
   },
@@ -505,7 +551,7 @@ const steps: Step[] = [
           row("Your share-out", "Not paid", f(712_043_010n), "good"),
           row("Your wallet", f(w), f(m.wallet), "good"),
         ],
-        note: "Bob got 720.48, Frank 714.08, Erin 693.98 and Cara 683.93. Dave got nothing and still owes 106.75.",
+        note: "Bala got 720.48, Farhan 714.08, Esha 693.98 and Chitra 683.93. Dev got nothing and still owes 106.75.",
       };
     },
   },
@@ -558,10 +604,11 @@ function fresh(name: string, address: Hex): Model {
     earned: 0n,
     members: [
       { ...bot(name, 9), address, you: true, status: "Not joined yet" },
-      ...["Bob", "Cara", "Dave", "Erin", "Frank"].map(bot),
+      ...["Bala", "Chitra", "Dev", "Esha", "Farhan"].map(bot),
     ],
     loans: [],
     proposals: [],
+    manager: null,
   };
 }
 
@@ -608,8 +655,20 @@ function snapshot(m: Model): CircleSnapshot {
           status: you.status,
         }
       : null,
+    manager: (() => {
+      const mgr = m.members.find((x) => x.name === m.manager);
+      return mgr
+        ? {
+            address: mgr.address,
+            name: mgr.name,
+            roundsManaged: 0,
+            averagePerRound: null,
+          }
+        : null;
+    })(),
     members: m.members.map((x) => ({
       ...x,
+      isManager: x.name === m.manager,
       savings: s(x.savings),
       loanOwed: s(x.loanOwed),
       pledged: s(x.pledged),
@@ -684,7 +743,7 @@ export async function mockApi(
         );
       }
       if (
-        ["bob", "cara", "dave", "erin", "frank"].includes(name.toLowerCase())
+        ["bala", "chitra", "dev", "esha", "farhan"].includes(name.toLowerCase())
       ) {
         throw new MockHttpError(409, "That name is taken. Try another one.");
       }

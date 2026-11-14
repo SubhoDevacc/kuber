@@ -16,25 +16,16 @@ function circleLine(c: AppCircle) {
 
 function CircleRow({ c, go, cta }: { c: AppCircle; go: Go; cta?: string }) {
   return (
-    <li>
+    <li className="arrive">
       <button
         type="button"
         onClick={() => go({ name: "circle", address: c.address })}
-        className="flex w-full items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4 text-left hover:border-brand"
+        className="w-full rounded-2xl border border-line bg-surface p-4 text-left shadow-[0_10px_30px_var(--color-shadow)] transition-colors hover:border-brand active:scale-[0.98] motion-reduce:transform-none"
       >
-        <span className="min-w-0">
-          <span className="block truncate font-display text-lg font-bold text-ink">
+        <span className="flex items-start justify-between gap-3">
+          <span className="min-w-0 truncate font-display text-lg font-bold text-ink">
             {c.name}
           </span>
-          <span className="mt-0.5 block text-sm text-ink-2">
-            {formatAmount(c.contribution)} mUSDC a round · {circleLine(c)}
-          </span>
-        </span>
-        {cta ? (
-          <span className="shrink-0 rounded-xl bg-brand px-3 py-2 text-sm font-semibold text-white">
-            {cta}
-          </span>
-        ) : (
           <Chip
             tone={
               c.status === "Completed" || c.status === "Cancelled"
@@ -44,6 +35,31 @@ function CircleRow({ c, go, cta }: { c: AppCircle; go: Go; cta?: string }) {
           >
             {c.status === "Forming" ? "Starting soon" : c.status}
           </Chip>
+        </span>
+        <span className="num mt-2 block text-sm font-semibold text-ink">
+          {formatAmount(c.contribution)} mUSDC{" "}
+          <span className="font-normal text-ink-2">per round</span>
+        </span>
+        <span className="mt-1 block text-sm text-ink-2">{circleLine(c)}</span>
+        {c.status === "Active" && c.totalRounds > 0 && (
+          <span
+            className="mt-3 block h-1.5 overflow-hidden rounded-full bg-brand-soft"
+            aria-hidden="true"
+          >
+            <span
+              className="block h-full rounded-full bg-brand"
+              style={{
+                width: `${Math.min(100, (c.round / c.totalRounds) * 100)}%`,
+              }}
+            />
+          </span>
+        )}
+        {cta && (
+          <span
+            className={`mt-3 inline-flex min-h-11 items-center rounded-xl px-4 text-sm font-semibold ${cta === "Join" ? "bg-brand text-white" : "bg-brand-soft text-brand"}`}
+          >
+            {cta}
+          </span>
         )}
       </button>
     </li>
@@ -103,26 +119,30 @@ export function HomePage({ go }: { go: Go }) {
         <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
           Hi, {me.name}
         </h1>
-        <section className="mt-4 rounded-2xl border border-line bg-surface p-4">
-          <p className="flex items-center gap-2 text-sm text-ink-2">
+        <section className="on-dark arrive mt-5 rounded-3xl border border-brand bg-brand-deep p-5 text-white shadow-[0_10px_30px_var(--color-shadow)] sm:p-7">
+          <p className="flex items-center gap-2 text-sm font-semibold text-white/80">
             <Wallet aria-hidden className="size-4" /> Your wallet
           </p>
-          <p className="num mt-1 font-display text-3xl font-bold text-ink">
+          <p className="num mt-3 font-display text-4xl font-bold tracking-tight sm:text-5xl">
             {formatAmount(me.musdc)}
-            <span className="text-base font-normal text-ink-2">
+            <span className="ml-1 text-base font-medium text-accent">
               {" "}
-              test mUSDC
+              mUSDC
             </span>
           </p>
-          <p className="num text-sm text-ink-2">
+          <p className="num mt-1 text-sm text-white/75">
             {formatAvax(me.avax)} AVAX for network fees
           </p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            <Button onClick={() => go({ name: "create" })}>
+          <div className="mt-6 grid gap-2 sm:grid-cols-2">
+            <Button
+              className="w-full !bg-accent !text-brand-deep hover:!bg-accent-soft active:scale-[0.98] motion-reduce:transform-none"
+              onClick={() => go({ name: "create" })}
+            >
               <Plus aria-hidden className="size-5" /> Create a circle
             </Button>
             <Button
               variant="secondary"
+              className="w-full !border-white/60 !bg-transparent !text-white hover:!border-white hover:!bg-white/10 active:scale-[0.98] motion-reduce:transform-none"
               busy={faucet.busy}
               disabled={faucet.busy}
               onClick={addMoney}
@@ -131,7 +151,7 @@ export function HomePage({ go }: { go: Go }) {
             </Button>
           </div>
           {faucet.note && (
-            <p role="status" className="mt-3 text-sm font-semibold text-ink">
+            <p role="status" className="mt-3 text-sm font-semibold text-white">
               {faucet.note}
             </p>
           )}
@@ -161,19 +181,42 @@ export function HomePage({ go }: { go: Go }) {
 
         <h2 className="mt-8 font-display text-xl font-bold text-ink">
           Your circles
+          {mine.length > 0 && (
+            <span className="num text-base font-medium text-ink-2">
+              {" "}
+              · {mine.length}
+            </span>
+          )}
         </h2>
         {circles === null && !error ? (
           <div
-            className="mt-3 h-20 animate-pulse rounded-2xl bg-line/60 motion-reduce:animate-none"
+            className="mt-3 rounded-2xl border border-line bg-surface p-4 shadow-[0_10px_30px_var(--color-shadow)]"
             role="status"
           >
             <span className="sr-only">Loading your circles</span>
+            <span className="block h-5 w-2/3 animate-pulse rounded bg-line/60 motion-reduce:animate-none" />
+            <span className="mt-3 block h-4 w-1/2 animate-pulse rounded bg-line/60 motion-reduce:animate-none" />
+            <span className="mt-2 block h-4 w-3/4 animate-pulse rounded bg-line/60 motion-reduce:animate-none" />
           </div>
         ) : mine.length === 0 ? (
-          <p className="mt-3 rounded-2xl border border-line bg-surface p-4 text-ink-2">
-            You're not in a circle yet. Create one — pick 2-minute rounds to try
-            it quickly — or join an open one below.
-          </p>
+          <div className="arrive mt-3 rounded-2xl border border-line bg-surface p-5 text-center shadow-[0_10px_30px_var(--color-shadow)]">
+            <img
+              src="/empty-circles.webp"
+              width={720}
+              height={480}
+              alt=""
+              aria-hidden="true"
+              className="mx-auto h-40 w-auto rounded-xl object-contain"
+            />
+            <h3 className="mt-3 font-display text-lg font-bold text-ink">
+              A circle starts with you
+            </h3>
+            <p className="mx-auto mt-1 max-w-md text-sm text-ink-2">
+              You're not in a circle yet. Create one — pick{" "}
+              <span className="whitespace-nowrap">2-minute rounds</span> to try
+              it quickly — or join an open one below.
+            </p>
+          </div>
         ) : (
           <ul className="mt-3 grid gap-3">
             {mine.map((c) => (

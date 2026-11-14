@@ -17,12 +17,19 @@ import {
   createTestClient,
   createWalletClient,
   defineChain,
+  encodeAbiParameters,
   http,
   parseEventLogs,
 } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { afterAll, beforeAll, expect, test } from "vitest";
-import { createFujiApp, DEFAULTS, parseFujiEnv } from "../src/fuji.ts";
+import {
+  createFujiApp,
+  DEFAULTS,
+  encodeAlloc,
+  PRACTICE_NAMES,
+  parseFujiEnv,
+} from "../src/fuji.ts";
 
 const root = join(import.meta.dirname, "..", "..", "..");
 const PATH = `${process.env.HOME}/.foundry/bin:${process.env.PATH}`;
@@ -282,26 +289,26 @@ test("real app on an Anvil standing in for Fuji: sign-in, grant once, a full cir
   ).toBe(429);
 
   // --- a second real user for names / lookup / people
-  const bob = privateKeyToAccount(generatePrivateKey());
-  const bm = `Kuber sign-in\nAddress: ${bob.address}\nTime: ${new Date().toISOString()}`;
-  const bobToken = (
+  const kabir = privateKeyToAccount(generatePrivateKey());
+  const bm = `Kuber sign-in\nAddress: ${kabir.address}\nTime: ${new Date().toISOString()}`;
+  const kabirToken = (
     await call(app, null, "POST", "/session", {
-      address: bob.address,
+      address: kabir.address,
       message: bm,
-      signature: await bob.signMessage({ message: bm }),
+      signature: await kabir.signMessage({ message: bm }),
     })
   ).json.token;
-  await call(app, bobToken, "POST", "/onboard", { name: "Bobby" });
+  await call(app, kabirToken, "POST", "/onboard", { name: "Kabir" });
   expect(
     (
       await api(
         "GET",
-        "/lookup?name=bobby",
+        "/lookup?name=kabir",
         undefined,
-        "GET /lookup?name=bobby",
+        "GET /lookup?name=kabir",
       )
     ).json.address,
-  ).toBe(bob.address);
+  ).toBe(kabir.address);
   expect(
     (
       await api(
@@ -313,20 +320,20 @@ test("real app on an Anvil standing in for Fuji: sign-in, grant once, a full cir
     ).status,
   ).toBe(404);
   expect(
-    (await api("GET", "/people?q=bo", undefined, "GET /people?q=bo")).json,
-  ).toEqual([{ address: bob.address, name: "Bobby" }]);
+    (await api("GET", "/people?q=ka", undefined, "GET /people?q=ka")).json,
+  ).toEqual([{ address: kabir.address, name: "Kabir" }]);
   expect(
     (
       await api(
         "GET",
-        `/names?addrs=${account.address},${bob.address}`,
+        `/names?addrs=${account.address},${kabir.address}`,
         undefined,
         "GET /names",
       )
     ).json[1].name,
-  ).toBe("Bobby");
+  ).toBe("Kabir");
 
-  // --- create a circle inviting the practice members (and Bobby), then add the 4 practice members
+  // --- create a circle inviting the practice members (and Kabir), then add the 4 practice members
   const { invites } = (
     await api("GET", "/practice-invites", undefined, "GET /practice-invites")
   ).json as { invites: Address[] };
@@ -349,7 +356,7 @@ test("real app on an Anvil standing in for Fuji: sign-in, grant once, a full cir
     "Demo circle",
     fixed,
     DEFAULTS.rules,
-    [...invites, bob.address],
+    [...invites, kabir.address],
   ]);
   const [ev] = parseEventLogs({
     abi: kuberFactoryAbi,
@@ -358,8 +365,9 @@ test("real app on an Anvil standing in for Fuji: sign-in, grant once, a full cir
   });
   const circle = ev.args.circle as Address;
   const start = fixed.startTime;
-  const bobList = (await call(app, bobToken, "GET", "/circles")).json as J[];
-  expect(bobList.find((r) => r.address === circle)).toMatchObject({
+  const kabirList = (await call(app, kabirToken, "GET", "/circles"))
+    .json as J[];
+  expect(kabirList.find((r) => r.address === circle)).toMatchObject({
     invited: true,
     canJoin: true,
     mine: false,
@@ -374,15 +382,27 @@ test("real app on an Anvil standing in for Fuji: sign-in, grant once, a full cir
   expect(pm.status).toBe(200);
   expect(pm.json.members).toHaveLength(5);
   expect(pm.json.live.practiceMembers).toBe(4);
+  // Round 3, item 6: practice members have plain Indian first names and stay tagged as practice members.
   expect(
-    pm.json.members.filter((m: J) => m.name.startsWith("Practice member")),
-  ).toHaveLength(4);
+    pm.json.members
+      .filter((m: J) => m.practice)
+      .map((m: J) => m.name)
+      .sort(),
+  ).toEqual([...PRACTICE_NAMES].sort());
+  expect(pm.json.live.invites.filter((i: J) => i.practice)).toHaveLength(4);
+  expect(pm.json.manager).toBeNull();
   expect(pm.json.live.invites).toHaveLength(5);
   expect(
     (
-      await call(app, bobToken, "POST", `/circles/${circle}/practice-members`, {
-        count: 1,
-      })
+      await call(
+        app,
+        kabirToken,
+        "POST",
+        `/circles/${circle}/practice-members`,
+        {
+          count: 1,
+        },
+      )
     ).status,
   ).toBe(403);
   examples["GET /circles"] = {
@@ -415,6 +435,38 @@ test("real app on an Anvil standing in for Fuji: sign-in, grant once, a full cir
     "round 2 closed",
     async () => (await view()).you.savings === "200000000",
   );
+  // --- item 4: the test vaults' demo controls (real admin transactions at start-up) make a round earn
+  await made.vaultsReady;
+  const vaultAbi = [
+    {
+      type: "function",
+      name: "speedup",
+      inputs: [],
+      outputs: [{ type: "uint32" }],
+      stateMutability: "view",
+    },
+  ] as const;
+  expect(
+    await pub.readContract({
+      address: made.vaults.aave,
+      abi: vaultAbi,
+      functionName: "speedup",
+    }),
+  ).toBe(21_600);
+  const r2v = await view();
+  expect(BigInt(r2v.pot.earned)).toBeGreaterThan(0n);
+  expect(BigInt(r2v.live.investments.aave.value)).toBeGreaterThan(0n);
+  expect(r2v.live.investments.aave.apyBps).toBe(500);
+  expect(r2v.live.investments.note).toContain("a month");
+  // The LP pool's price moves (first move is up), from the keeper's loop; forced here instead of waiting 60 s.
+  expect(await made.moveLp(true)).toBe(30);
+  expect(
+    BigInt((await view()).live.investments.lp.changeThisRound),
+  ).toBeGreaterThan(0n);
+  examples["GET /circles/:address (round 2 closed: investments)"] = {
+    status: 200,
+    body: { pot: r2v.pot, investments: (await view()).live.investments },
+  };
   await send(circle, kuberCircleAbi, "payNow");
   const r3 = await view();
   expect(r3.you.savings).toBe("300000000");
@@ -434,6 +486,31 @@ test("real app on an Anvil standing in for Fuji: sign-in, grant once, a full cir
     amount: "290000000",
     needsBacking: "20000000",
     mine: true,
+    rateBps: 800,
+    // item 5: the risk and the reward of backing what the request needs
+    ifYouBack: {
+      amount: "20000000",
+      couldLose: "20000000",
+      wouldEarn: "1600000",
+    },
+    ifYouAgree: {
+      amount: "20000000",
+      couldLose: "20000000",
+      wouldEarn: "800000",
+    },
+  });
+  const ifb = await api(
+    "GET",
+    `/circles/${circle}/requests/${asked.live.requests[0].id}/if-you-back?amount=20000000`,
+    undefined,
+    "GET /circles/:address/requests/:id/if-you-back",
+  );
+  expect(ifb.json).toEqual({
+    how: "vouch",
+    amount: "20000000",
+    couldLose: "20000000",
+    wouldEarn: "1600000",
+    rateBps: 800,
   });
   examples["GET /circles/:address (Active, loan request waiting)"] = {
     status: 200,
@@ -447,6 +524,34 @@ test("real app on an Anvil standing in for Fuji: sign-in, grant once, a full cir
   );
   expect(backed.status).toBe(200);
   expect(backed.json.live.requests[0].needsBacking).toBe("0");
+  // What the contract takes on hold from the practice backer is exactly couldLose.
+  expect(backed.json.members.find((m: J) => m.pledged !== "0")?.pledged).toBe(
+    asked.live.requests[0].ifYouBack.couldLose,
+  );
+
+  // --- item 1: vote a practice member in as fund manager (round 3; practice members vote yes via the keeper)
+  const r3b = backed.json;
+  expect(r3b.live.you.canProposeManager).toBe(true);
+  const gita = r3b.live.managerCandidates.find((m: J) => m.name === "Gita");
+  expect(gita.practice).toBe(true);
+  await send(circle, kuberCircleAbi, "propose", [
+    2,
+    encodeAbiParameters([{ type: "address" }], [gita.address]),
+  ]);
+  const mp = await view();
+  expect(mp.live.you.proposedThisRound).toBe(true);
+  expect(mp.live.you.canPropose).toBe(false);
+  expect(mp.live.you.proposeReason).toBe(
+    "You already suggested a change this round. You can suggest another next round.",
+  );
+  expect(mp.live.proposals[0]).toMatchObject({
+    kind: "manager",
+    title: "Make Gita the fund manager",
+  });
+  await until(
+    "practice members voted for the manager",
+    async () => (await view()).live.proposals[0]?.yes === 4,
+  );
   await warp(start + 3n * dur + 1n);
   await until(
     "loan funded",
@@ -472,11 +577,71 @@ test("real app on an Anvil standing in for Fuji: sign-in, grant once, a full cir
   await send(circle, kuberCircleAbi, "claim");
   expect((await balance()) - before).toBe(290n * USDC);
 
+  // --- item 2: Gita is the fund manager (applied when round 3 closed)
+  const r4 = await view();
+  expect(r4.manager).toMatchObject({ address: gita.address, name: "Gita" });
+  expect(r4.members.find((m: J) => m.isManager)?.name).toBe("Gita");
+  expect(
+    r4.members.filter((m: J) => m.isManager && m.name !== "Gita"),
+  ).toHaveLength(0);
+  expect(r4.live.you.isManager).toBe(false);
+  // --- item 3: only the manager may propose a plan; the user asks Gita, who proposes the preset
+  expect(r4.live.you.canProposePlan).toBe(false);
+  expect(r4.live.planNote).toBe(
+    "Only the fund manager, Gita, can suggest a new money plan. Everyone still votes on it.",
+  );
+  await expect(
+    pub.simulateContract({
+      account,
+      address: circle,
+      abi: kuberCircleAbi,
+      functionName: "propose",
+      args: [
+        1,
+        encodeAlloc({ loan: 4_000, aave: 2_000, lp: 3_000, cash: 1_000 }),
+      ],
+    }),
+  ).rejects.toThrow(/OnlyManager/);
+  expect(r4.live.canAskManagerPlan).toBe(true);
+  expect(r4.live.askManagerPlanLabel).toBe(
+    "Ask Gita to propose a new money plan",
+  );
+  expect(r4.live.managerPreset).toEqual({
+    loan: 4_000,
+    aave: 3_500,
+    lp: 1_500,
+    cash: 1_000,
+  });
+  expect(r4.live.plan.current).toEqual(DEFAULTS.rules.alloc);
+  const asked2 = await api(
+    "POST",
+    `/circles/${circle}/practice-plan`,
+    undefined,
+    "POST /circles/:address/practice-plan",
+  );
+  expect(asked2.status).toBe(200);
+  const planP = asked2.json.live.proposals.find((p: J) => p.kind === "plan");
+  expect(planP).toMatchObject({
+    title: "New money plan: ready to lend 40%, Aave 35%, LP pool 15%, cash 10%",
+    open: true,
+    plan: { loan: 4_000, aave: 3_500, lp: 1_500, cash: 1_000 },
+  });
+  expect(asked2.json.live.canAskManagerPlan).toBe(false);
+  expect((await api("POST", `/circles/${circle}/practice-plan`)).status).toBe(
+    409,
+  );
+  await send(circle, kuberCircleAbi, "vote", [BigInt(planP.id), true]);
+
   // --- propose: practice members vote yes (keeper), applied when the round closes
   await send(circle, kuberCircleAbi, "propose", [0, made.encodeRule(7, 200)]);
+  const ruleId = () =>
+    view().then((v) => v.live.proposals.find((p: J) => p.kind === "rule") as J);
   await until(
     "practice members voted",
-    async () => (await view()).live.proposals[0]?.yes === 4,
+    async () =>
+      (await ruleId())?.yes === 4 &&
+      (await view()).live.proposals.find((p: J) => p.id === planP.id)?.yes ===
+        5,
   );
   await send(circle, kuberCircleAbi, "repayAll");
   const repaid = await view();
@@ -491,7 +656,40 @@ test("real app on an Anvil standing in for Fuji: sign-in, grant once, a full cir
     "proposal applied",
     async () => (await view()).live.rules[7].current === 200,
   );
-  expect((await view()).proposals[0].status).toBe("Done");
+  const applied = await view();
+  expect(
+    applied.proposals
+      .filter((p: J) => p.status === "Done")
+      .map((p: J) => p.kind)
+      .sort(),
+  ).toEqual(["manager", "plan", "rule"]);
+  // The money plan the practice manager proposed is the circle's plan now.
+  expect(applied.live.plan.current).toEqual({
+    loan: 4_000,
+    aave: 3_500,
+    lp: 1_500,
+    cash: 1_000,
+  });
+  examples["GET /circles/:address (manager appointed, plan applied)"] = {
+    status: 200,
+    body: {
+      manager: applied.manager,
+      members: applied.members,
+      proposals: applied.proposals,
+      live: {
+        you: applied.live.you,
+        plan: applied.live.plan,
+        planNote: applied.live.planNote,
+        canAskManagerPlan: applied.live.canAskManagerPlan,
+        askManagerPlanReason: applied.live.askManagerPlanReason,
+        askManagerPlanLabel: applied.live.askManagerPlanLabel,
+        managerPreset: applied.live.managerPreset,
+        managerPresetNote: applied.live.managerPresetNote,
+        managerCandidates: applied.live.managerCandidates,
+        investments: applied.live.investments,
+      },
+    },
+  };
 
   // --- to the end; collect the share-out
   await warp(start + 5n * dur + 1n);
@@ -506,6 +704,12 @@ test("real app on an Anvil standing in for Fuji: sign-in, grant once, a full cir
   await send(circle, kuberCircleAbi, "withdraw");
   const done = await view();
   expect(BigInt(done.you.paidOut)).toBeGreaterThanOrEqual(600n * USDC);
+  // item 5 end to end: the practice backer was paid exactly the wouldEarn shown before backing.
+  expect(done.loans[0].backers[0].earned).toBe(
+    asked.live.requests[0].ifYouBack.wouldEarn,
+  );
+  // Gita managed rounds 4-6: the registry's record (item 7).
+  expect(done.manager.roundsManaged).toBeGreaterThanOrEqual(1);
   expect((await balance()) - b2).toBe(BigInt(done.you.paidOut));
   examples["GET /circles/:address (Completed, collected)"] = {
     status: 200,
@@ -527,9 +731,14 @@ test("real app on an Anvil standing in for Fuji: sign-in, grant once, a full cir
   expect(whats).toContain("Round 1 closed");
   expect(
     whats.some((w: string) =>
-      /^Practice member \d backed your loan with 20.00$/.test(w),
+      /^(Gita|Hari|Indu|Jay) backed your loan with 20.00$/.test(w),
     ),
   ).toBe(true);
+  expect(whats).toContain("You proposed: make Gita the fund manager");
+  expect(whats).toContain("Gita is now the fund manager");
+  expect(whats).toContain(
+    "Gita proposed: a new money plan (ready to lend 40%, Aave 35%, LP pool 15%, cash 10%)",
+  );
   expect(act[0].block).toBeGreaterThanOrEqual(act[act.length - 1].block);
   for (const e of act) expect(e.txHash).toMatch(/^0x[0-9a-f]{64}$/);
   const mine = (await api("GET", "/activity", undefined, "GET /activity"))

@@ -2,7 +2,13 @@ import { CircleAlert, CircleCheck, LoaderCircle } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { ApiError } from "../lib/errors";
 import type { Hex } from "../types";
-import { type Call, PlainError, plainReason, sendTx } from "./chain";
+import {
+  type Call,
+  PlainError,
+  plainReason,
+  readClient,
+  sendTx,
+} from "./chain";
 import { useApp } from "./ctx";
 import { TxHash } from "./TxDetails";
 
@@ -83,7 +89,30 @@ export function useTx(onDone?: () => void) {
     setNote(null);
   }, []);
 
-  return { steps, busy, note, run, clear, setNote };
+  /** A transaction the server sent for this action (a practice member's): shown confirmed once its receipt is in. */
+  const record = useCallback(
+    async (label: string, hash: Hex) => {
+      const receipt = await readClient(chain).waitForTransactionReceipt({
+        hash,
+      });
+      setSteps((s) => [
+        ...s,
+        {
+          label,
+          phase: receipt.status === "success" ? "done" : "failed",
+          hash,
+          block: receipt.blockNumber,
+          message:
+            receipt.status === "success"
+              ? undefined
+              : "That didn't go through. Nothing changed.",
+        },
+      ]);
+    },
+    [chain],
+  );
+
+  return { steps, busy, note, run, clear, setNote, record };
 }
 
 export function TxSteps({

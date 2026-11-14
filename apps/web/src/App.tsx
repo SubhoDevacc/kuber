@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button, Wordmark } from "./components/ui";
 import { api, setApiAddress } from "./lib/api";
+import { markTutorialDone, tutorialDone } from "./lib/tutorialDone";
 import { addressOf, createKey, getKey } from "./lib/wallet";
 import { Finish } from "./pages/Finish";
 import { CirclePage, Home } from "./pages/Home";
@@ -19,23 +20,6 @@ type View =
   | { name: "home" }
   | { name: "circle"; address: string };
 
-const SKIPPED = "kuber.skippedTutorial";
-const skipped = () => {
-  try {
-    return localStorage.getItem(SKIPPED) === "1";
-  } catch {
-    return false;
-  }
-};
-const setSkipped = (on: boolean) => {
-  try {
-    if (on) localStorage.setItem(SKIPPED, "1");
-    else localStorage.removeItem(SKIPPED);
-  } catch {
-    // private mode: the choice just isn't remembered
-  }
-};
-
 export function App({ onSignIn }: { onSignIn?: () => void } = {}) {
   const [key, setKey] = useState<Hex | null>(getKey);
   const [view, setView] = useState<View>({ name: "loading" });
@@ -45,11 +29,10 @@ export function App({ onSignIn }: { onSignIn?: () => void } = {}) {
   const route = useCallback(async () => {
     const me = await api.me();
     if (!me.name || !me.verified) return setView({ name: "signup" });
-    if (skipped()) return setView({ name: "home" });
-    if (me.tutorial === null)
-      return setView({ name: "tutorial", t: await api.start() });
-    if (me.tutorial.done) return setView({ name: "home" });
-    setView({ name: "tutorial", t: me.tutorial });
+    // No skipping on the first run: Home opens only after the tutorial was finished once on this wallet.
+    if (me.tutorial?.done) markTutorialDone(me.address);
+    if (tutorialDone(me.address)) return setView({ name: "home" });
+    setView({ name: "tutorial", t: me.tutorial ?? (await api.start()) });
   }, []);
 
   const boot = useCallback(async () => {
@@ -77,7 +60,6 @@ export function App({ onSignIn }: { onSignIn?: () => void } = {}) {
   }, [view.name]);
 
   async function tutorialMode() {
-    setSkipped(false);
     setHomeNote("Opening the tutorial…");
     try {
       const me = await api.me();
@@ -95,7 +77,6 @@ export function App({ onSignIn }: { onSignIn?: () => void } = {}) {
   }
 
   async function restart() {
-    setSkipped(false);
     setHomeNote(
       "Setting up a fresh practice circle. This can take a few seconds…",
     );
@@ -151,11 +132,15 @@ export function App({ onSignIn }: { onSignIn?: () => void } = {}) {
           key={view.t.circle}
           initial={view.t}
           privateKey={key}
-          onSkip={() => {
-            setSkipped(true);
-            setView({ name: "home" });
+          onLeave={
+            tutorialDone(addressOf(key))
+              ? () => setView({ name: "home" })
+              : undefined
+          }
+          onDone={(t) => {
+            markTutorialDone(addressOf(key));
+            setView({ name: "finish", t });
           }}
-          onDone={(t) => setView({ name: "finish", t })}
         />
       ) : null;
     case "finish":

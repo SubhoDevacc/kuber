@@ -30,7 +30,13 @@ export const CHAPTERS = [
   "A member stops paying",
   "Share-out",
 ];
-const BOTS = { B: "Bob", C: "Cara", D: "Dave", E: "Erin", F: "Frank" } as const;
+const BOTS = {
+  B: "Bala",
+  C: "Chitra",
+  D: "Dev",
+  E: "Esha",
+  F: "Farhan",
+} as const;
 type Bot = keyof typeof BOTS;
 type Letter = Bot | "A";
 const BOT_LETTERS = Object.keys(BOTS) as Bot[];
@@ -70,7 +76,7 @@ const OPTIONS = [
     value: "join",
     label: "Join a circle",
     description:
-      "Bob has started a practice circle and invited you. Join it with the other practice members.",
+      "Bala has started a practice circle and invited you. Join it with the other practice members.",
   },
   {
     value: "create",
@@ -89,10 +95,12 @@ export type Tutorial = {
   lastChange: Change | null;
   before: Facts;
   userLoan: number;
-  daveLoan: number;
+  devLoan: number;
   proposal: number;
+  /** Round 3, item 9: Chitra's proposal to make Bala the fund manager (0% fee, so no money changes). */
+  managerProposal: number;
   running: Promise<unknown> | null;
-  /** "join" (Bob's circle, default) or "create" (the user's own circle); null until the first step is done. */
+  /** "join" (Bala's circle, default) or "create" (the user's own circle); null until the first step is done. */
   path: Choice | null;
   createArgs: Action["args"] | null;
   createFrom: bigint;
@@ -129,6 +137,8 @@ const n0 = (
 ) => (m ? m[k] : 0n);
 const loan = (f: Facts, id: number): LoanRaw | undefined =>
   f.loans.find((l) => l.id === id);
+/** "80.00" (money without the unit). */
+const plainMoney = (v: bigint) => money(v).replace(" mUSDC", "");
 const row = (
   label: string,
   before: string,
@@ -184,7 +194,7 @@ const STEPS: Step[] = [
     chapter: 1,
     title: "Join or create a circle",
     body: () =>
-      "Every circle is started by one person, who invites the others. Join the practice circle Bob started, or create your own and the practice members join you. Either way the story and the numbers are the same.",
+      "Every circle is started by one person, who invites the others. Join the practice circle Bala started, or create your own and the practice members join you. Either way the story and the numbers are the same.",
     action: null,
     options: OPTIONS,
     waitNote: "Getting your practice circle ready…",
@@ -192,19 +202,19 @@ const STEPS: Step[] = [
       title:
         t.path === "create"
           ? "You will create the circle"
-          : "You will join Bob's circle",
+          : "You will join Bala's circle",
       rows: [
         row(
           "Your practice circle",
           "Not chosen",
-          t.path === "create" ? "Started by you" : "Started by Bob",
+          t.path === "create" ? "Started by you" : "Started by Bala",
           "good",
         ),
       ],
       note:
         t.path === "create"
           ? "Next you send the transaction that creates the circle on your practice chain."
-          : "Bob, Cara, Dave, Erin and Frank are already in it.",
+          : "Bala, Chitra, Dev, Esha and Farhan are already in it.",
     }),
   },
   {
@@ -213,14 +223,14 @@ const STEPS: Step[] = [
     chapter: 1,
     title: "Create your circle",
     body: (f) =>
-      `Create the practice circle: everyone saves ${money(f.contribution)} (test money) each round for ${f.totalRounds} rounds, and you invite Bob, Cara, Dave, Erin and Frank. This is one real transaction.`,
+      `Create the practice circle: everyone saves ${money(f.contribution)} (test money) each round for ${f.totalRounds} rounds, and you invite Bala, Chitra, Dev, Esha and Farhan. This is one real transaction.`,
     action: (_f, t) => ({
       label: "Create the circle",
       target: "factory",
       functionName: "createCircle",
       args: t.createArgs ?? [],
     }),
-    waitNote: "Bob, Cara, Dave, Erin and Frank are joining…",
+    waitNote: "Bala, Chitra, Dev, Esha and Farhan are joining…",
     change: (_b, a) => ({
       title: "Your circle is ready",
       rows: [
@@ -268,7 +278,7 @@ const STEPS: Step[] = [
     chapter: 1,
     title: "Join the circle",
     body: () =>
-      "Bob started this practice circle and invited you, Cara, Dave, Erin and Frank. They have all joined. Join too, and the circle starts with 6 people.",
+      "Bala started this practice circle and invited you, Chitra, Dev, Esha and Farhan. They have all joined. Join too, and the circle starts with 6 people.",
     action: () => ({
       label: "Join the circle",
       target: "circle",
@@ -293,7 +303,7 @@ const STEPS: Step[] = [
     chapter: 1,
     title: "Start the circle",
     body: () =>
-      "Bob, Cara, Dave, Erin and Frank have joined your circle. At its start time the circle starts with 6 people.",
+      "Bala, Chitra, Dev, Esha and Farhan have joined your circle. At its start time the circle starts with 6 people.",
     action: null,
     waitNote: "Starting the circle…",
     run: async (e, t) => {
@@ -342,7 +352,7 @@ const STEPS: Step[] = [
     run: async (e, t) => {
       await e.toRound(t, 3);
       await e.settle(t);
-      // Round 3 is paid up front by every bot (Dave must have 3 rounds saved before he can borrow).
+      // Round 3 is paid up front by every bot (Dev must have 3 rounds saved before he can borrow).
       await e.payBots(t, BOT_LETTERS);
     },
     change: (b, a, t) => ({
@@ -402,7 +412,7 @@ const STEPS: Step[] = [
     chapter: 2,
     title: "Ask for a loan",
     body: () =>
-      "Ask for 350, paid back over 2 rounds. Up to 270 can come from your own 300 of savings. The other 80 needs a backer: Bob will back you by putting 80 of his savings on hold for your loan.",
+      "Ask for 350, paid back over 2 rounds. Up to 270 can come from your own 300 of savings. The other 80 needs a backer: Bala will back you by putting 80 of his savings on hold for your loan, at the 8% interest you offer. Bala could lose up to 80.00 · Bala earns 6.40.",
     action: () => ({
       label: "Ask for 350.00 mUSDC",
       target: "circle",
@@ -415,16 +425,16 @@ const STEPS: Step[] = [
         ? null
         : "We can't see your loan request yet. Press “Ask for 350.00 mUSDC”, wait until it is confirmed, then continue.";
     },
-    waitNote: "Bob is backing you, and round 3 is closing…",
+    waitNote: "Bala is backing you, and round 3 is closing…",
     run: async (e, t, f) => {
       const me = user(f, t);
       t.userLoan = me?.pendingRequestId || me?.activeLoanId || 0;
       await e.bot(t, "D", "requestLoan", [350n * USDC, 3n, 800n, 0n]);
-      const dave = await e.member(t, "D");
-      t.daveLoan = dave.pendingRequestId;
+      const devM = await e.member(t, "D");
+      t.devLoan = devM.pendingRequestId;
       await e.bot(t, "B", "vouch", [BigInt(t.userLoan), 80n * USDC]);
-      await e.bot(t, "C", "vouch", [BigInt(t.daveLoan), 30n * USDC]);
-      await e.bot(t, "E", "agree", [BigInt(t.daveLoan), 50n * USDC]);
+      await e.bot(t, "C", "vouch", [BigInt(t.devLoan), 30n * USDC]);
+      await e.bot(t, "E", "agree", [BigInt(t.devLoan), 50n * USDC]);
       await e.toRound(t, 4);
       await e.settle(t);
     },
@@ -443,14 +453,25 @@ const STEPS: Step[] = [
             funded ? "good" : "plain",
           ),
           mrow("From your own savings", 0n, l?.ownPart ?? 0n),
-          mrow("Backed by Bob", 0n, l?.backedNeed ?? 0n, "good"),
+          mrow("Backed by Bala", 0n, l?.backedNeed ?? 0n, "good"),
           mrow(
-            "Bob's savings on hold",
+            "Bala's savings on hold",
             n0(who(b, t, "B"), "pledgedOut"),
             n0(who(a, t, "B"), "pledgedOut"),
           ),
+          // Item 5: the backer's risk and reward in money (couldLose = the pledge; earns = pledge x offered rate).
+          ...(l?.vouchers[0]
+            ? [
+                row(
+                  "Bala's risk for backing you",
+                  "None",
+                  `Bala could lose up to ${plainMoney(l.vouchers[0].amount)} · Bala earns ${plainMoney((l.vouchers[0].amount * BigInt((l as { offeredRateBps?: number }).offeredRateBps ?? 800)) / 10_000n)}`,
+                  "plain",
+                ),
+              ]
+            : []),
         ],
-        note: "Loans are paid out when a round closes. Dave also borrowed 350, backed by Cara and Erin.",
+        note: "Loans are paid out when a round closes. Dev also borrowed 350, backed by Chitra and Esha.",
       };
     },
   },
@@ -507,7 +528,7 @@ const STEPS: Step[] = [
         : "Your loan is still in the circle. Press “Take 350.00 mUSDC”, wait until it is confirmed, then continue.",
     waitNote: "Round 4 is closing…",
     run: async (e, t) => {
-      // R-I: Dave takes his loan, then removes his permission, so nothing more can be collected from him.
+      // R-I: Dev takes his loan, then removes his permission, so nothing more can be collected from him.
       await e.bot(t, "D", "claim");
       await e.botUsdc(t, "D", "approve", [t.circle, 0n]);
       await e.payBots(t, ["B", "C", "E", "F"]);
@@ -536,7 +557,7 @@ const STEPS: Step[] = [
             "good",
           ),
           row(
-            "Dave's round 4 savings",
+            "Dev's round 4 savings",
             "Due",
             missed ? "Not paid" : "Paid",
             missed ? "bad" : "plain",
@@ -554,8 +575,8 @@ const STEPS: Step[] = [
       const l = loan(f, t.userLoan);
       if (!l) return "Pay this round's savings plus your first repayment.";
       const n = BigInt(l.repayEpochs);
-      const bob = l.vouchers[0]?.interest ?? 0n;
-      return `This round you pay your savings plus the first repayment of ${money(installmentOf(l))}: ${money(l.amount / n)} of the loan, ${money(l.saverInterest / n)} interest for all savers, and ${money(bob / n)} for Bob for backing you.`;
+      const kabir = l.vouchers[0]?.interest ?? 0n;
+      return `This round you pay your savings plus the first repayment of ${money(installmentOf(l))}: ${money(l.amount / n)} of the loan, ${money(l.saverInterest / n)} interest for all savers, and ${money(kabir / n)} for Bala for backing you.`;
     },
     action: (f, t) => {
       const l = loan(f, t.userLoan);
@@ -592,19 +613,19 @@ const STEPS: Step[] = [
           "good",
         ),
         mrow(
-          "Bob earned for backing you",
+          "Bala earned for backing you",
           n0(who(b, t, "B"), "rewards"),
           n0(who(a, t, "B"), "rewards"),
           "good",
         ),
         row(
-          "Dave",
+          "Dev",
           memberStatus(who(b, t, "D")),
           memberStatus(who(a, t, "D")),
           "bad",
         ),
       ],
-      note: "Paying on time keeps you on track. Dave paid nothing, so he is now behind on his loan.",
+      note: "Paying on time keeps you on track. Dev paid nothing, so he is now behind on his loan.",
     }),
   },
   {
@@ -635,6 +656,12 @@ const STEPS: Step[] = [
       );
       await e.bot(t, "B", "propose", [0, data]);
       t.proposal = Number((await e.state(t)).proposalCount);
+      // Round 3, item 9: Chitra suggests Bala as fund manager (one proposal per member per round, so not Bala).
+      await e.bot(t, "C", "propose", [
+        2,
+        encodeAbiParameters([{ type: "address" }], [t.bots.B.address]),
+      ]);
+      t.managerProposal = Number((await e.state(t)).proposalCount);
     },
     change: (b, a, t) => ({
       title: "Loan repaid",
@@ -646,13 +673,13 @@ const STEPS: Step[] = [
           "good",
         ),
         mrow(
-          "Bob earned for backing you",
+          "Bala earned for backing you",
           n0(who(b, t, "B"), "rewards"),
           n0(who(a, t, "B"), "rewards"),
           "good",
         ),
         mrow(
-          "Bob's savings on hold",
+          "Bala's savings on hold",
           n0(who(b, t, "B"), "pledgedOut"),
           n0(who(a, t, "B"), "pledgedOut"),
           "good",
@@ -664,15 +691,52 @@ const STEPS: Step[] = [
           "good",
         ),
       ],
-      note: "Bob earned interest for trusting you, and his savings are free again.",
+      note: "Bala earned interest for trusting you, and his savings are free again.",
     }),
+  },
+  {
+    id: "manager",
+    chapter: 4,
+    title: "Vote in a fund manager",
+    body: () =>
+      "Chitra suggests making Bala the circle's fund manager. A fund manager suggests how the pot is invested (the money plan: ready to lend, Aave, LP pool, cash), and everyone still votes on each plan. Bala's fee stays 0%, so nobody's money changes. Vote yes to make Bala the fund manager.",
+    action: (_f, t) => ({
+      label: "Vote yes",
+      target: "circle",
+      functionName: "vote",
+      args: [String(t.managerProposal), true],
+    }),
+    check: (f, t) =>
+      f.proposals.find((p) => p.id === t.managerProposal)?.youVoted
+        ? null
+        : "Your vote isn't in yet. Press “Vote yes”, wait until it is confirmed, then continue.",
+    waitNote: "Recording the votes…",
+    run: async (e, t) => {
+      await e.bot(t, "B", "vote", [BigInt(t.managerProposal), true]);
+      await e.bot(t, "C", "vote", [BigInt(t.managerProposal), true]);
+      await e.bot(t, "E", "vote", [BigInt(t.managerProposal), true]);
+      await e.bot(t, "F", "vote", [BigInt(t.managerProposal), true]);
+    },
+    change: (b, a, t) => {
+      const pb = b.proposals.find((p) => p.id === t.managerProposal);
+      const pa = a.proposals.find((p) => p.id === t.managerProposal);
+      return {
+        title: "Your vote is in",
+        rows: [
+          row("Yes votes", String(pb?.yes ?? 0), String(pa?.yes ?? 0), "good"),
+          row("No votes", String(pb?.no ?? 0), String(pa?.no ?? 0)),
+          row("Fund manager", "None", "Bala, when round 6 closes", "plain"),
+        ],
+        note: "More than half of the members said yes. Like every change, it applies when the round closes.",
+      };
+    },
   },
   {
     id: "vote",
     chapter: 4,
     title: "Vote on a rule",
     body: (f) =>
-      `Bob suggests lowering the fee for leaving the circle early from ${pct(f.exitFeeBps)} to 2%. It passes if more than half of the ${f.members.length} members vote yes. Nobody is leaving this circle, so it changes no one's money here.`,
+      `Bala suggests lowering the fee for leaving the circle early from ${pct(f.exitFeeBps)} to 2%. It passes if more than half of the ${f.members.length} members vote yes. Nobody is leaving this circle, so it changes no one's money here.`,
     action: (_f, t) => ({
       label: "Vote yes",
       target: "circle",
@@ -708,14 +772,24 @@ const STEPS: Step[] = [
             passed ? "good" : "plain",
           ),
           row(
-            "Dave",
+            "Fund manager",
+            b.manager
+              ? (t.names.get(b.manager.address.toLowerCase()) ?? "Bala")
+              : "None",
+            a.manager
+              ? (t.names.get(a.manager.address.toLowerCase()) ?? "Bala")
+              : "None",
+            "good",
+          ),
+          row(
+            "Dev",
             memberStatus(who(b, t, "D")),
             memberStatus(who(a, t, "D")),
             "bad",
           ),
         ],
         note: passed
-          ? "More than half of the members said yes, so the rule changed when round 6 closed."
+          ? `More than half of the members said yes, so the rule changed when round 6 closed.${a.manager ? " Bala is now the fund manager (fee 0%)." : ""}`
           : "Not enough members said yes, so the rule stayed the same.",
       };
     },
@@ -723,9 +797,9 @@ const STEPS: Step[] = [
   {
     id: "default",
     chapter: 5,
-    title: "Dave stops paying",
+    title: "Dev stops paying",
     body: () =>
-      "Dave borrowed 350 and has paid nothing back: he is 2 repayments behind. When the last round closes, the circle takes what he owes from his own savings first. Only what is still missing comes from the people who backed him.",
+      "Dev borrowed 350 and has paid nothing back: he is 2 repayments behind. When the last round closes, the circle takes what he owes from his own savings first. Only what is still missing comes from the people who backed him.",
     action: null,
     waitNote: "Round 7, the last round, is closing…",
     run: async (e, t) => {
@@ -742,33 +816,33 @@ const STEPS: Step[] = [
       await e.settle(t);
     },
     change: (b, a, t) => {
-      const d = loan(a, t.daveLoan);
+      const d = loan(a, t.devLoan);
       const lostC = n0(who(a, t, "C"), "lost");
       const lostE = n0(who(a, t, "E"), "lost");
-      const fromDave = (d?.amount ?? 0n) - lostC - lostE;
+      const fromDev = (d?.amount ?? 0n) - lostC - lostE;
       return {
-        title: "Dave's loan was covered",
+        title: "Dev's loan was covered",
         rows: [
           mrow(
-            "Dave's savings",
+            "Dev's savings",
             n0(who(b, t, "D"), "savings"),
             n0(who(a, t, "D"), "savings"),
             "bad",
           ),
           mrow(
-            "Cara lost (she backed Dave)",
+            "Chitra lost (she backed Dev)",
             n0(who(b, t, "C"), "lost"),
             lostC,
             "bad",
           ),
           mrow(
-            "Erin lost (she backed Dave)",
+            "Esha lost (she backed Dev)",
             n0(who(b, t, "E"), "lost"),
             lostE,
             "bad",
           ),
           mrow(
-            "Frank lost",
+            "Farhan lost",
             n0(who(b, t, "F"), "lost"),
             n0(who(a, t, "F"), "lost"),
             "good",
@@ -780,14 +854,14 @@ const STEPS: Step[] = [
             "good",
           ),
           mrow(
-            "Dave still owes",
+            "Dev still owes",
             n0(who(b, t, "D"), "debt"),
             n0(who(a, t, "D"), "debt"),
             "bad",
           ),
           row("Circle", roundLabel(b), roundLabel(a)),
         ],
-        note: `Dave's own savings paid ${money(fromDave)} first; only the people who backed him covered the rest (Cara ${money(lostC)}, Erin ${money(lostE)}). Frank and you lost nothing.`,
+        note: `Dev's own savings paid ${money(fromDev)} first; only the people who backed him covered the rest (Chitra ${money(lostC)}, Esha ${money(lostE)}). Farhan and you lost nothing.`,
       };
     },
   },
@@ -823,11 +897,11 @@ const STEPS: Step[] = [
         rows: [
           share("A", "Your share-out"),
           mrow("Your wallet", b.userWallet, a.userWallet, "good"),
-          share("B", "Bob's share-out"),
-          share("C", "Cara's share-out"),
-          share("D", "Dave's share-out"),
-          share("E", "Erin's share-out"),
-          share("F", "Frank's share-out"),
+          share("B", "Bala's share-out"),
+          share("C", "Chitra's share-out"),
+          share("D", "Dev's share-out"),
+          share("E", "Esha's share-out"),
+          share("F", "Farhan's share-out"),
         ],
         note: `You saved ${money(saved)} and got back ${money(mine)}: your savings plus your share of what the circle earned.`,
       };
@@ -859,12 +933,15 @@ const BOT_LABEL = (
   if (fn === "vouch" || fn === "agree")
     return Number(args[0]) === t.userLoan
       ? `${n} backed your loan`
-      : `${n} backed Dave's loan`;
+      : `${n} backed Dev's loan`;
   if (fn === "requestLoan")
     return `${n} asked to borrow ${money(args[0] as bigint)}`;
   if (fn === "claim") return `${n} took the loan`;
   if (fn === "vote") return `${n} voted ${args[1] ? "yes" : "no"}`;
-  if (fn === "propose") return `${n} proposed a rule change`;
+  if (fn === "propose")
+    return args[0] === 2
+      ? `${n} proposed making Bala the fund manager`
+      : `${n} proposed a rule change`;
   if (fn === "withdraw") return `${n} collected the share-out`;
   if (fn === "join") return `${n} joined`;
   return `${n}: ${fn}`;
@@ -1014,7 +1091,7 @@ export const tutorials = (
   /** Practice circles: lowercase circle -> display names of its members. */
   const practice = new Map<string, Names>();
 
-  /** Five fresh bots (verified, gas, 10,000 mUSDC), Bob creates the S1 circle inviting the user, the rest join. */
+  /** Five fresh bots (verified, gas, 10,000 mUSDC), Bala creates the S1 circle inviting the user, the rest join. */
   const create = async (u: Address, userName: string): Promise<Tutorial> => {
     // Unique per run, also across server restarts on the same chain: every run creates exactly one circle.
     const run = Number(
@@ -1088,8 +1165,9 @@ export const tutorials = (
       lastChange: null,
       before: await readFacts(circle, u),
       userLoan: 0,
-      daveLoan: 0,
+      devLoan: 0,
       proposal: 0,
+      managerProposal: 0,
       running: null,
       path: null,
       createArgs: null,
@@ -1117,7 +1195,7 @@ export const tutorials = (
     for (const l of BOT_LETTERS) await e.bot(t, l, "join");
     for (const l of BOT_LETTERS)
       await e.botUsdc(t, l, "approve", [circle, 5_000n * USDC]);
-    // Bob's circle stays behind unused; it is no longer the user's (a copy of the names without the user).
+    // Bala's circle stays behind unused; it is no longer the user's (a copy of the names without the user).
     const left = new Map(t.names);
     left.delete(t.user.toLowerCase());
     practice.set(old.toLowerCase(), left);
