@@ -22,7 +22,7 @@ Every contract below is deployed on Avalanche Fuji and its source is verified. O
 | MockUSDC | Test money (mUSDC, 6 decimals) | [`0x2d2345237E7B49b252b4be208E91366A6EF08105`](https://testnet.snowtrace.io/address/0x2d2345237E7B49b252b4be208E91366A6EF08105) |
 | MockAaveVault | Test vault standing in for Aave (ERC-4626) | [`0x73F22060975713baEfB0fF11120de7e9c4236849`](https://testnet.snowtrace.io/address/0x73F22060975713baEfB0fF11120de7e9c4236849) |
 | MockLPVault | Test vault standing in for a liquidity pool (ERC-4626) | [`0xe7AcB6DB6BD00126981762d69dF65BE4B64C2be9`](https://testnet.snowtrace.io/address/0xe7AcB6DB6BD00126981762d69dF65BE4B64C2be9) |
-| KuberPracticeLog | Public record of tutorial steps | Not deployed yet. Source: [`contracts/src/KuberPracticeLog.sol`](contracts/src/KuberPracticeLog.sol) |
+| KuberPracticeLog | Public record of tutorial steps | [`0xf5E84885fCF15FCb108817B3611dDEb3f0DfC774`](https://testnet.snowtrace.io/address/0xf5E84885fCF15FCb108817B3611dDEb3f0DfC774) |
 
 ### Libraries linked into KuberCircle
 
@@ -44,7 +44,7 @@ Deployed at block 61,038,808. The same addresses are in [`deployments/fuji.json`
 ### How to check a transaction
 
 - **In the real app:** every action (create, join, save, borrow, back, repay, vote, collect) is a transaction from your own wallet on Fuji. The result line shows its hash; tap it for the details, then "View on Snowtrace".
-- **In the tutorial:** the practice circle runs on a private chain so rounds can be skipped, and the app shows each transaction's details. The app is built to also record every step on Fuji in `KuberPracticeLog` with a Snowtrace link; that starts once the contract above is deployed.
+- **In the tutorial:** the practice circle runs on a private chain so rounds can be skipped, and the app shows each transaction's details. Every step is also recorded by a real transaction on Fuji in `KuberPracticeLog`, and the app links to it on Snowtrace.
 - **Every circle is its own contract.** The circle page shows its address under "On the chain" with a Snowtrace link. The first circle created on Fuji is [`0x19abd310E071F6Bc8f650d11a9ec427A7F03A7Ca`](https://testnet.snowtrace.io/address/0x19abd310E071F6Bc8f650d11a9ec427A7F03A7Ca).
 
 ## Architecture
@@ -186,4 +186,4 @@ pnpm lint && pnpm check:versions
 
 ## Honest limits
 
-This is a proof of concept on a test network with test money. The token and the two vaults are mocks, the identity check is mocked, practice members are run by the server, and the tutorial's logic runs on a private chain. [`STATUS.md`](STATUS.md) lists every shortcut and what a real version needs.
+This is a proof of concept on a test network with test money. The token and the two vaults are mocks, the identity check is mocked, practice members are run by the server, and the tutorial's logic runs on a private chain with each step recorded on Fuji. [`STATUS.md`](STATUS.md) lists every shortcut and what a real version needs.
