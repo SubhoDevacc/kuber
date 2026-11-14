@@ -21,6 +21,14 @@
     {
       "name": "Kabir T",
       "address": "0x0d1EabFfECF58b3B3C66E99Da359C46e1B46B816"
+    },
+    {
+      "name": "Nisha P 67",
+      "address": "0xe675762531f9f58161e6085C37eB9B525f08F861"
+    },
+    {
+      "name": "Arjun D 95",
+      "address": "0x87f706Db11f320056A60A13DF54E4FE94C019fec"
     }
   ],
   "circles": [
@@ -394,6 +402,247 @@
         }
       ],
       "status": "Completed"
+    },
+    {
+      "name": "Corner shop circle",
+      "address": "0xD51a68B76e3F4dEc091411BfcAc65515654687d1",
+      "snowtrace": "https://testnet.snowtrace.io/address/0xD51a68B76e3F4dEc091411BfcAc65515654687d1",
+      "creator": "Nisha P 67",
+      "secondUser": "Arjun D 95",
+      "finished": true,
+      "txCount": 25,
+      "txByAction": {
+        "createCircle": 1,
+        "invite": 1,
+        "approve": 2,
+        "join": 1,
+        "payNow (save now)": 6,
+        "requestLoan": 1,
+        "vouch (back a loan)": 1,
+        "propose: make Gita the fund manager": 1,
+        "vote yes (manager)": 2,
+        "propose: rule 5 to 200 bps": 1,
+        "vote yes (rule)": 2,
+        "claim (take loan)": 1,
+        "repayAll": 1,
+        "vote yes (plan)": 2,
+        "withdraw (collect share-out)": 2
+      },
+      "serverActions": [
+        {
+          "circle": "Corner shop circle",
+          "action": "practice-members",
+          "ok": true
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "practice-plan",
+          "ok": true
+        }
+      ],
+      "txs": [
+        {
+          "circle": "Corner shop circle",
+          "action": "createCircle",
+          "from": "Nisha P 67",
+          "hash": "0x9fe6ada0ccf297e435d5b131343851549c94a76719b863599e30d1cc5e237b72",
+          "ok": true,
+          "time": "2026-11-14T07:51:35.529Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "invite",
+          "from": "Nisha P 67",
+          "hash": "0x4166beea0176ecb32759e3612d6ae9f7733c2f5ab8ca14ecc3574817a9b62209",
+          "ok": true,
+          "time": "2026-11-14T07:51:40.060Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "approve",
+          "from": "Arjun D 95",
+          "hash": "0x4e4d34f4156bcc696f19caac5ec78bae975f6a903c81730d4c044dcf8d564d74",
+          "ok": true,
+          "time": "2026-11-14T07:51:44.649Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "join",
+          "from": "Arjun D 95",
+          "hash": "0x62c4ee83f116b37b23b0d741bfc32c0db42ad22d69a7fa49fa8fae5e367e5b47",
+          "ok": true,
+          "time": "2026-11-14T07:51:49.128Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "approve",
+          "from": "Nisha P 67",
+          "hash": "0xfbba767146f7146b29fcc1958ebc041ab82455ff4395b2d7f61b825e88107465",
+          "ok": true,
+          "time": "2026-11-14T07:52:09.095Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "payNow (save now)",
+          "from": "Nisha P 67",
+          "hash": "0x3ea0e87d0ffee2d505c81c1d45bb479e7451e8ae205bf13cc1994b74092c13e6",
+          "ok": true,
+          "time": "2026-11-14T07:53:23.213Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "payNow (save now)",
+          "from": "Arjun D 95",
+          "hash": "0x39a23d59b063d92b8654cd71e627fc92791b88e0f18a237d7c543ac3604ef9b1",
+          "ok": true,
+          "time": "2026-11-14T07:55:25.458Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "payNow (save now)",
+          "from": "Nisha P 67",
+          "hash": "0x38abee325a971c5d1ac0bfa4c3ccb5c3ec38b4ede3a93ff9399c367d9f171377",
+          "ok": true,
+          "time": "2026-11-14T07:57:14.006Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "payNow (save now)",
+          "from": "Arjun D 95",
+          "hash": "0xd4e11096787e5f0d8900a09f8f2ff2555d1d2d50259af74baa9a9d02a5163e82",
+          "ok": true,
+          "time": "2026-11-14T07:57:18.274Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "requestLoan",
+          "from": "Nisha P 67",
+          "hash": "0xb0d1749d2308bfb292fba784b115b9652e8a53d5919da812774b2350e8ba40a5",
+          "ok": true,
+          "time": "2026-11-14T07:57:22.543Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "vouch (back a loan)",
+          "from": "Arjun D 95",
+          "hash": "0x598a4b8a3ee6044f7eb4ad2a7a1f1fac4ecb6471ecde2125642fcda87e32fdf7",
+          "ok": true,
+          "time": "2026-11-14T07:57:26.885Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "propose: make Gita the fund manager",
+          "from": "Nisha P 67",
+          "hash": "0xebeef56e676fabebbb2e426411893c1466ece205fdafb691735f3b6d5131579a",
+          "ok": true,
+          "time": "2026-11-14T07:57:31.198Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "vote yes (manager)",
+          "from": "Arjun D 95",
+          "hash": "0x39482b8f71c7c6b10d6d1ba8990ab4b1f0032bc68add2aaa188a599d373346d6",
+          "ok": true,
+          "time": "2026-11-14T07:57:37.802Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "vote yes (manager)",
+          "from": "Nisha P 67",
+          "hash": "0x12406c62e1f3d858104e73fc98e0f881152fad05ca3a05d2d73fd8b1370f86d7",
+          "ok": true,
+          "time": "2026-11-14T07:57:42.500Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "propose: rule 5 to 200 bps",
+          "from": "Arjun D 95",
+          "hash": "0xfcaf7426e1afd6e6177b3a9a503e27cecfff4d6d13db51e7195ea4e63158e8f7",
+          "ok": true,
+          "time": "2026-11-14T07:57:46.936Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "vote yes (rule)",
+          "from": "Nisha P 67",
+          "hash": "0xd32c10419e698a85506b346a2edda833e010868584c021f67722a369318b8b72",
+          "ok": true,
+          "time": "2026-11-14T07:57:51.389Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "vote yes (rule)",
+          "from": "Arjun D 95",
+          "hash": "0xea771348c083ee36b851e661a60f4d808f17151e703af1a5a280e0fd87a1bf73",
+          "ok": true,
+          "time": "2026-11-14T07:57:55.827Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "claim (take loan)",
+          "from": "Nisha P 67",
+          "hash": "0x01deec020e51b684363dedd1952c16c730783fd5d07220a8ef29ea929957a4fd",
+          "ok": true,
+          "time": "2026-11-14T07:59:12.115Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "payNow (save now)",
+          "from": "Arjun D 95",
+          "hash": "0x26f1ff9c9dd3c9a42dfa3d72aea633061969e724a931bd77dcd61cd57e4be66d",
+          "ok": true,
+          "time": "2026-11-14T07:59:16.586Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "repayAll",
+          "from": "Nisha P 67",
+          "hash": "0x2ecf482fd4cc257c93e5d1f3817da4a692d4b3a9d445429282f10e620f082ff2",
+          "ok": true,
+          "time": "2026-11-14T07:59:21.082Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "vote yes (plan)",
+          "from": "Arjun D 95",
+          "hash": "0xbe9b01bac9ee70c78eecfb2a00eac0d580127c5565a35f64a414c4f569ce44fe",
+          "ok": true,
+          "time": "2026-11-14T07:59:31.744Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "vote yes (plan)",
+          "from": "Nisha P 67",
+          "hash": "0x970215709b7b84fd2da89d1fac986b4e5392977b49eec7d11d1cd3b14d42351d",
+          "ok": true,
+          "time": "2026-11-14T07:59:36.202Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "payNow (save now)",
+          "from": "Nisha P 67",
+          "hash": "0x4dcf5c109e71a22198a8a7a33ced62babe8a0e8bd0906a5f5bee908e76fb4fb8",
+          "ok": true,
+          "time": "2026-11-14T08:01:20.473Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "withdraw (collect share-out)",
+          "from": "Nisha P 67",
+          "hash": "0x3ab4c70c548380b7fb9969a5e5e98e29156ff27ae96e0d9ebc30afab8043131d",
+          "ok": true,
+          "time": "2026-11-14T08:05:19.558Z"
+        },
+        {
+          "circle": "Corner shop circle",
+          "action": "withdraw (collect share-out)",
+          "from": "Arjun D 95",
+          "hash": "0x2eea22f804ecf9965cbb1303efc2e2cba3e20a6c6973ab14f28f19b114e450f8",
+          "ok": true,
+          "time": "2026-11-14T08:05:25.414Z"
+        }
+      ],
+      "status": "completed and collected"
     }
   ],
   "setupTxs": [],
@@ -426,5 +675,10 @@
       "reason": "Something went wrong on our side. Please try again."
     }
   ],
-  "note": "The script was stopped once both started circles had collected their share-out; the last periodic write (07:45:04Z) holds every transaction."
+  "note": "The script was stopped once both started circles had collected their share-out; the last periodic write (07:45:04Z) holds every transaction.",
+  "secondRun": {
+    "startedAt": "2026-11-14T07:51:15.987Z",
+    "finishedAt": "2026-11-14T08:05:37.874Z",
+    "note": "A second run of one two-user circle (Corner shop circle), to exercise a second user backing a loan by vouching."
+  }
 }

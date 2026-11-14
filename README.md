@@ -43,12 +43,13 @@ Deployed at block 61,038,808. The same addresses are in [`deployments/fuji.json`
 
 ### Sample circles run on Fuji
 
-A script (`scripts/fuji-exercise.ts`) plays sample users through the live server and the real contracts. Its last run sent 32 transactions, all successful; every hash is in [`deployments/fuji-exercise.json`](deployments/fuji-exercise.json).
+A script (`scripts/fuji-exercise.ts`) plays sample users through the live server and the real contracts. Across two runs it sent 57 transactions, all successful; every hash is in [`deployments/fuji-exercise.json`](deployments/fuji-exercise.json).
 
 | Circle | What happened | Address on Fuji |
 |---|---|---|
 | Harbor circle | Ran all 6 rounds: save, borrow with a backer, repay, vote in a fund manager, two money-plan votes, share-out | [`0xDc385Ed0e3250c0297b4C44Fc64F55122FD25bC4`](https://testnet.snowtrace.io/address/0xDc385Ed0e3250c0297b4C44Fc64F55122FD25bC4) |
 | Office savers | Ran all 6 rounds: save, borrow with a backer, repay, a rule change, vote in a fund manager, a money-plan vote, share-out | [`0x96d0fFbae2C07A4bB4eDf20c819642C3c7299871`](https://testnet.snowtrace.io/address/0x96d0fFbae2C07A4bB4eDf20c819642C3c7299871) |
+| Corner shop circle | Two users. Ran all 6 rounds: invite and join, save, borrow with the second user backing by vouching, repay, vote in a fund manager, a rule change, a money-plan vote, share-out for both | [`0xD51a68B76e3F4dEc091411BfcAc65515654687d1`](https://testnet.snowtrace.io/address/0xD51a68B76e3F4dEc091411BfcAc65515654687d1) |
 | Market friends | Invite and join by a second user, then cancelled by the contract: it had 3 of the 5 members it needed at its start time | [`0x35490be73e3303B8f8922C8Cd93Da050DF1d5016`](https://testnet.snowtrace.io/address/0x35490be73e3303B8f8922C8Cd93Da050DF1d5016) |
 
 The other members of these circles are practice members run by the server.
