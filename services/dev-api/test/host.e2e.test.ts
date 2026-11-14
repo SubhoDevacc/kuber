@@ -150,6 +150,8 @@ async function* play(name: string) {
     );
     s = r.json;
     expect(s.stepIndex).toBe(prev + 1);
+    // The real-app side is off here: no Fuji record, and the step still works.
+    expect(s.lastChange.record).toBeNull();
     if (before.length) {
       const after = await Promise.all(people.map(balance));
       const byName = new Map(
@@ -194,6 +196,13 @@ test("hosted: two users interleaved through the whole tutorial, each on their ow
   expect(page.status).toBe(200);
   expect(page.headers.get("content-type")).toMatch(/text\/html/);
   expect(await page.text()).toBe(INDEX);
+  // The Fuji server's internal record route is never served from the public port.
+  const internal = await fetch(`${base}/internal/practice-log`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+  expect(internal.status).toBe(404);
 
   const u1 = play("Alice");
   const u2 = play("Kabir");

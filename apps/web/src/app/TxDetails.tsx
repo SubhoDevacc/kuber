@@ -17,8 +17,10 @@ import {
   type Transaction,
   type TransactionReceipt,
 } from "viem";
+import { PublicRecordLine } from "../components/PublicRecordLine";
 import { Button, Chip } from "../components/ui";
 import { shortHash } from "../lib/wallet";
+import type { PublicRecord } from "../types";
 import { type Args, describeCall, describeEvent, who } from "./txDescribe";
 
 export type TxChain = {
@@ -76,10 +78,13 @@ function decodeCall(input: `0x${string}`): { name: string; args: Args } | null {
 export function TxHash({
   hash,
   chain,
+  record,
   className = "",
 }: {
   hash: `0x${string}`;
   chain: TxChain;
+  /** Tutorial: the step's copy on Avalanche Fuji, when there is one. */
+  record?: PublicRecord | null;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -93,7 +98,13 @@ export function TxHash({
       >
         {shortHash(hash)}
       </button>
-      <TxDialog hash={hash} chain={chain} open={open} onOpenChange={setOpen} />
+      <TxDialog
+        hash={hash}
+        chain={chain}
+        record={record}
+        open={open}
+        onOpenChange={setOpen}
+      />
     </>
   );
 }
@@ -102,11 +113,13 @@ export function TxHash({
 export function TxDialog({
   hash,
   chain,
+  record,
   open,
   onOpenChange,
 }: {
   hash: `0x${string}`;
   chain: TxChain;
+  record?: PublicRecord | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -196,22 +209,36 @@ export function TxDialog({
             {state.kind === "ready" && (
               <Details data={state.data} hash={hash} chain={chain} />
             )}
-            <p className="mt-4 text-sm text-ink-2">
-              {chain.explorer ? (
-                <a
-                  href={`${chain.explorer}/tx/${hash}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex min-h-11 items-center gap-1.5 font-medium text-brand underline decoration-brand/40 underline-offset-4 hover:decoration-brand"
-                >
-                  View on Snowtrace
-                  <ExternalLink aria-hidden className="size-4" />
-                  <span className="sr-only">(opens in a new tab)</span>
-                </a>
-              ) : (
-                "Practice chain — not on a public explorer"
-              )}
-            </p>
+            {!chain.explorer && record ? (
+              <div className="mt-5">
+                <h3 className="font-display text-base font-bold text-ink">
+                  Public record
+                </h3>
+                <p className="mt-1 text-sm text-ink-2">
+                  The practice circle runs on a private chain. This step is also
+                  recorded on Avalanche Fuji, where anyone can check it.
+                </p>
+                <CopyHash hash={record.hash} />
+                <PublicRecordLine record={record} className="mt-2" />
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-ink-2">
+                {chain.explorer ? (
+                  <a
+                    href={`${chain.explorer}/tx/${hash}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-11 items-center gap-1.5 font-medium text-brand underline decoration-brand/40 underline-offset-4 hover:decoration-brand"
+                  >
+                    View on Snowtrace
+                    <ExternalLink aria-hidden className="size-4" />
+                    <span className="sr-only">(opens in a new tab)</span>
+                  </a>
+                ) : (
+                  "Practice chain — not on a public explorer"
+                )}
+              </p>
+            )}
           </div>
         </Dialog.Content>
       </Dialog.Portal>
@@ -369,6 +396,18 @@ function Party({
 }
 
 function HashRow({ hash }: { hash: `0x${string}` }) {
+  return (
+    <div className="mt-5">
+      <h3 className="font-display text-base font-bold text-ink">
+        Transaction ID
+      </h3>
+      <CopyHash hash={hash} />
+    </div>
+  );
+}
+
+/** The full hash with a Copy button. */
+function CopyHash({ hash }: { hash: `0x${string}` }) {
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (!copied) return;
@@ -384,23 +423,18 @@ function HashRow({ hash }: { hash: `0x${string}` }) {
     }
   };
   return (
-    <div className="mt-5">
-      <h3 className="font-display text-base font-bold text-ink">
-        Transaction ID
-      </h3>
-      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <code className="num min-w-0 flex-1 rounded-lg bg-paper px-3 py-2 font-mono text-xs break-all text-ink">
-          {hash}
-        </code>
-        <Button variant="secondary" onClick={copy} className="shrink-0">
-          {copied ? (
-            <Check aria-hidden className="size-4" />
-          ) : (
-            <Copy aria-hidden className="size-4" />
-          )}
-          <span aria-live="polite">{copied ? "Copied" : "Copy"}</span>
-        </Button>
-      </div>
+    <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+      <code className="num min-w-0 flex-1 rounded-lg bg-paper px-3 py-2 font-mono text-xs break-all text-ink">
+        {hash}
+      </code>
+      <Button variant="secondary" onClick={copy} className="shrink-0">
+        {copied ? (
+          <Check aria-hidden className="size-4" />
+        ) : (
+          <Copy aria-hidden className="size-4" />
+        )}
+        <span aria-live="polite">{copied ? "Copied" : "Copy"}</span>
+      </Button>
     </div>
   );
 }

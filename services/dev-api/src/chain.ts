@@ -33,6 +33,9 @@ const EnvSchema = z.object({
   ADMIN_PRIVATE_KEY: hex64.optional(),
   WELCOME_GRANT_MUSDC: z.coerce.number().int().positive().default(20000),
   DEPLOYMENT_PATH: z.string().optional(),
+  // Tutorial step records on Fuji (host.ts sets both): the Fuji server's internal route and its token.
+  PRACTICE_LOG_URL: z.url().optional(),
+  INTERNAL_TOKEN: z.string().min(16).optional(),
 });
 export type Env = z.infer<typeof EnvSchema>;
 

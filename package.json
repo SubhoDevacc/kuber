@@ -10,6 +10,7 @@
   "scripts": {
     "check:versions": "node scripts/check-versions.ts",
     "deploy:local": "node scripts/deploy.ts --network local",
+    "deploy:practice-log": "node scripts/deploy-practice-log.ts",
     "dev": "node scripts/dev.ts",
     "lint": "biome check .",
     "start:app": "node services/dev-api/src/fuji-server.ts",

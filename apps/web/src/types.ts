@@ -16,12 +16,17 @@ export type ChangeRow = {
   tone: "good" | "bad" | "plain";
 };
 
+/** A tutorial step's public copy on Avalanche Fuji (the practice chain itself has no explorer). */
+export type PublicRecord = { chain: string; hash: Hex; url: string };
+
 export type LastChange = {
   title: string;
   rows: ChangeRow[];
   note: string | null;
   /** The real transactions the server sent during the step (practice members, the settlement). Optional. */
   txs?: { label: string; hash: Hex }[];
+  /** The step's record on Avalanche Fuji. Missing or null = none (older server, or local dev without Fuji). */
+  record?: PublicRecord | null;
 };
 
 export type StepOption = { value: string; label: string; description: string };

@@ -14,7 +14,7 @@ Live demo: <https://kuber-production.up.railway.app> · Contracts on Avalanche F
 ### Tutorial mode (private practice chain per visitor)
 - New users go through it once; it cannot be skipped the first time.
 - Starts with a choice: join Bala's circle or create your own. Six chapters, 16 or 17 steps, each a real transaction: save, borrow with a backer, repay, vote in a fund manager, vote on a rule, a member stops paying, share-out.
-- Every step shows sent → confirmed → round settled, the real transaction hashes, and a "What just changed" card.
+- Every step shows sent → confirmed → round settled, the real transaction hashes, and a "What just changed" card. Each step is also recorded on Avalanche Fuji with a Snowtrace link.
 - After the first run: a "Tutorial mode" switch in the top bar and a chapter picker that sets up a fresh practice circle and fast-forwards to the chosen chapter.
 - End payouts match SPEC §4 to the unit on both paths (checked by the server test).
 
@@ -44,7 +44,7 @@ Every item below is a real on-chain transaction; what is simplified is who decid
 9. **"Tutorial finished" and "tip shown" are remembered in the browser** per wallet. Real version: stored per account on the server.
 10. **Display names are kept in a file on the server** and are lost if the server's disk is replaced (addresses are shown instead). Real version: a database.
 11. **The one-grant-per-person limit** is per wallet; the check against the Privy account is written but not proven with a real token.
-12. **The tutorial runs on a private chain, not Fuji,** so that time can be moved forward.
+12. **The tutorial's logic runs on a private practice chain, not Fuji,** so that time can be moved forward. Each step is also recorded on Fuji by a real transaction to `KuberPracticeLog`; that transaction is a public record of the step, not the money movement itself. Real version: run the tutorial on a public network in real time, or run the practice chain as its own Avalanche L1.
 
 ## Left (not built)
 
@@ -53,6 +53,7 @@ Every item below is a real on-chain transaction; what is simplified is who decid
 3. Removing a member by vote and late joining with a sponsor have contract support but no screens.
 4. Seed data, live APY sync, offline support, end-to-end browser tests in the repo, Lighthouse.
 5. A private Fuji RPC endpoint (the public one rate-limits under load).
+6. Moving the practice chain to its own Avalanche L1 (today it is a private test chain started by the server for each visitor).
 
 ## How to run
 

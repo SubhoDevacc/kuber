@@ -55,7 +55,7 @@ export function Welcome({
             <Hero />
           </div>
           <div className="md:order-1">
-            <h1 className="max-w-[11ch] font-display text-[clamp(2.8rem,6vw,5rem)] leading-[0.98] font-extrabold tracking-[-0.055em] text-brand-deep">
+            <h1 className="max-w-[16ch] font-display text-[clamp(2.8rem,5.2vw,4.25rem)] leading-[1.02] font-extrabold tracking-[-0.055em] text-brand-deep">
               Save your money together.
             </h1>
             <p className="mt-5 max-w-[32rem] text-base leading-relaxed text-ink-2 sm:text-lg">

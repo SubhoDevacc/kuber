@@ -20,8 +20,14 @@ if (!process.env.FUJI_ADMIN_PRIVATE_KEY) {
   fetcher = off.fetch;
   console.log("app: FUJI_ADMIN_PRIVATE_KEY not set; the real app is off (503)");
 } else {
-  const { app, chain } = await createFujiApp(parseFujiEnv(process.env));
-  fetcher = app.fetch;
+  const { app, internal, chain } = await createFujiApp(
+    parseFujiEnv(process.env),
+  );
+  // /internal/* (tutorial step records, token only; host.ts forwards only /api/app/*), the rest is the app.
+  fetcher = (req) =>
+    new URL(req.url).pathname.startsWith("/internal/")
+      ? internal.fetch(req)
+      : app.fetch(req);
   console.log(`app: chain ${chain.chainId}, admin ${chain.admin.address}`);
 }
 serve({ fetch: fetcher, hostname: HOST, port: PORT }, (info) => {

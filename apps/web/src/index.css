@@ -2,11 +2,11 @@
 
 /* A bright green foundation with gold reserved for highlights and progress. */
 @theme {
-  --color-paper: #f3f8f1;
+  --color-paper: #cce9d5;
   --color-surface: #ffffff;
   --color-ink: #102d20;
   --color-ink-2: #50665a;
-  --color-line: #d7e5d8;
+  --color-line: #bdd9c6;
   --color-brand: #116b43;
   --color-brand-deep: #083d2b;
   --color-brand-soft: #e2f3e8;
@@ -62,7 +62,7 @@ body {
 }
 
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .app-card:hover {
+  .app-card:is(button, a):hover {
     transform: translateY(-2px);
     box-shadow: 0 14px 34px rgb(8 61 43 / 0.12);
   }

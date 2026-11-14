@@ -5,7 +5,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { mockLpVaultAbi } from "@kuber/shared";
+import { kuberPracticeLogAbi, mockLpVaultAbi } from "@kuber/shared";
 import { PrivyClient } from "@privy-io/node";
 import { Hono } from "hono";
 import {
@@ -65,6 +65,10 @@ const FujiEnvSchema = z.object({
   LP_MOVE_EVERY_MS: z.coerce.number().int().min(0).default(60_000),
   LP_MOVE_UP_BPS: z.coerce.number().int().min(1).max(500).default(30),
   LP_MOVE_DOWN_BPS: z.coerce.number().int().min(1).max(500).default(20),
+  // Tutorial step records: KuberPracticeLog's address (else deployments/fuji.json → practiceLog) and the
+  // token host.ts shares with its children for POST /internal/practice-log.
+  PRACTICE_LOG_ADDRESS: z.string().optional(),
+  INTERNAL_TOKEN: z.string().min(16).optional(),
 });
 export type FujiEnv = z.infer<typeof FujiEnvSchema>;
 export const parseFujiEnv = (raw: NodeJS.ProcessEnv): FujiEnv => {
@@ -1789,8 +1793,87 @@ export const createFujiApp = async (env: FujiEnv) => {
     );
   });
 
+  // ---------- tutorial step records (internal): one KuberPracticeLog.record per practice-chain step.
+  // Not under /api/app, so host.ts never forwards it; only callers with INTERNAL_TOKEN get in.
+  const practiceLog = (() => {
+    let raw = env.PRACTICE_LOG_ADDRESS;
+    if (!raw)
+      try {
+        raw = (
+          JSON.parse(readFileSync(path, "utf8")) as { practiceLog?: string }
+        ).practiceLog;
+      } catch {
+        raw = undefined;
+      }
+    return raw && isAddress(raw, { strict: false }) ? getAddress(raw) : null;
+  })();
+  const LogBody = z.object({
+    user: z.string().refine((a) => isAddress(a, { strict: false })),
+    practiceCircle: z.string().refine((a) => isAddress(a, { strict: false })),
+    step: z.string().min(1).max(120),
+    actions: z
+      .array(
+        z.object({
+          label: z.string().min(1).max(120),
+          practiceTx: hex64,
+        }),
+      )
+      .min(1)
+      .max(20),
+  });
+  const internal = new Hono();
+  internal.notFound((ctx) =>
+    ctx.json({ error: "There is nothing here." }, 404),
+  );
+  internal.post("/internal/practice-log", async (ctx) => {
+    const got = ctx.req.header("x-internal-token") ?? "";
+    const want = env.INTERNAL_TOKEN ?? "";
+    if (
+      !want ||
+      got.length !== want.length ||
+      !timingSafeEqual(Buffer.from(got), Buffer.from(want))
+    )
+      return ctx.json({ error: "Not allowed." }, 401);
+    if (!practiceLog)
+      return ctx.json({ error: "The practice log is not set up." }, 503);
+    const r = LogBody.safeParse(await ctx.req.json().catch(() => null));
+    if (!r.success)
+      return ctx.json({ error: "That record doesn't look right." }, 400);
+    const b = r.data;
+    try {
+      // Fixed generous gas: estimates can be too tight on Fuji.
+      const hash = await fire(admin, {
+        to: practiceLog,
+        abi: kuberPracticeLogAbi as Abi,
+        functionName: "record",
+        args: [
+          getAddress(b.user),
+          getAddress(b.practiceCircle),
+          b.step,
+          b.actions.map((a) => a.label),
+          b.actions.map((a) => a.practiceTx),
+        ],
+        gas: 120_000n + 60_000n * BigInt(b.actions.length),
+      });
+      // Answer at broadcast; the admin queue still waits for the receipt so later nonces stay in order.
+      // (60 s at most, so one lost record never stalls the admin's other transactions for long).
+      void serial(admin.address, () =>
+        c.pub
+          .waitForTransactionReceipt({ hash, timeout: 60_000 })
+          .catch((e) =>
+            console.error(`app: practice record ${hash}: ${firstLine(e)}`),
+          ),
+      );
+      return ctx.json({ hash });
+    } catch (e) {
+      console.error(`app: practice record not sent: ${firstLine(e)}`);
+      return ctx.json({ error: "The record was not sent." }, 502);
+    }
+  });
+
   return {
     app,
+    internal,
     chain: c,
     stop,
     keeperTick,

@@ -1,4 +1,5 @@
 import { useContext } from "react";
+import { PublicRecordLine } from "../components/PublicRecordLine";
 import { formatAmount } from "../lib/money";
 import type { Hex } from "../types";
 import { type ActivityItem, toMs } from "./appApi";
@@ -64,8 +65,11 @@ export function ActivityList({
               {when(a.time)}
               {showCircle && a.circle ? ` · ${a.circle}` : ""}
               {" · "}
-              <TxHash hash={a.txHash} chain={tc} />
+              <TxHash hash={a.txHash} chain={tc} record={a.record} />
             </p>
+            {a.record && (
+              <PublicRecordLine record={a.record} className="mt-0.5" />
+            )}
           </div>
           {a.amount !== null && a.amount !== undefined && (
             <p className="num shrink-0 text-sm font-semibold text-ink">

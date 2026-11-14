@@ -1,6 +1,6 @@
 // The real app's server (`/api/app`, REAL-APP.md). Amounts are base-unit strings (6 decimals) like the tutorial's.
 import { ApiError } from "../lib/errors";
-import type { CircleSnapshot, Hex, MoneyPlan } from "../types";
+import type { CircleSnapshot, Hex, MoneyPlan, PublicRecord } from "../types";
 
 export type AppHealth = {
   ok: boolean;
@@ -165,6 +165,8 @@ export type ActivityItem = {
   txHash: Hex;
   block: number;
   circle?: string;
+  /** Tutorial only: the Avalanche Fuji record of the step this transaction belonged to. */
+  record?: PublicRecord | null;
 };
 
 export type Person = { address: Hex; name: string };

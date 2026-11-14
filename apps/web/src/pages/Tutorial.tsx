@@ -12,6 +12,7 @@ import type { ActivityItem } from "../app/appApi";
 import { type TxChain, TxHash } from "../app/TxDetails";
 import { ChangeCard } from "../components/ChangeCard";
 import { CircleView } from "../components/CircleView";
+import { PublicRecordLine } from "../components/PublicRecordLine";
 import { Button, Section } from "../components/ui";
 import { ApiError, api } from "../lib/api";
 import { formatAmount } from "../lib/money";
@@ -22,11 +23,17 @@ import {
   practiceReader,
   sendAction,
 } from "../lib/wallet";
-import type { Hex, TutorialState } from "../types";
+import type { Hex, PublicRecord, TutorialState } from "../types";
 
 type Phase = "idle" | "sending" | "confirming" | "server";
 type Sent = { hash: Hex; block: bigint };
-type HistoryItem = { step: string; hash: Hex; block: string };
+type HistoryItem = {
+  step: string;
+  hash: Hex;
+  block: string;
+  /** The step's copy on Avalanche Fuji; older saved items have none. */
+  record?: PublicRecord | null;
+};
 
 const historyKey = (circle: Hex) => `kuber.history.${circle.toLowerCase()}`;
 function loadHistory(circle: Hex): HistoryItem[] {
@@ -45,6 +52,7 @@ function HistoryButton({
   items: HistoryItem[];
   chain: TxChain;
 }) {
+  const recorded = items.some((h) => h.record);
   return (
     <Dialog.Root>
       <Dialog.Trigger asChild>
@@ -64,7 +72,10 @@ function HistoryButton({
           </Dialog.Title>
           <Dialog.Description className="mt-1 text-sm text-ink-2">
             Every transaction you sent in this tutorial. Tap a hash to see what
-            it did. Practice chain — not on a public explorer.
+            it did.
+            {recorded
+              ? " The practice circle runs on a private chain so rounds can be skipped. Every step is also recorded on Avalanche Fuji, where anyone can check it."
+              : " Practice chain — not on a public explorer."}
           </Dialog.Description>
           {items.length === 0 ? (
             <p className="mt-4 text-sm text-ink-2">Nothing sent yet.</p>
@@ -80,8 +91,11 @@ function HistoryButton({
                   </span>
                   <span className="text-sm text-ink-2">
                     {h.block !== "0" && `block ${h.block} · `}
-                    <TxHash hash={h.hash} chain={chain} />
+                    <TxHash hash={h.hash} chain={chain} record={h.record} />
                   </span>
+                  {h.record && (
+                    <PublicRecordLine record={h.record} className="w-full" />
+                  )}
                 </li>
               ))}
             </ol>
@@ -248,7 +262,25 @@ export function Tutorial({
     panel.current?.scrollTo({ top: 0 });
   }, [t.step.id, reviewing]);
 
+  function saveHistory(update: (h: HistoryItem[]) => HistoryItem[]) {
+    setHistory((h) => {
+      const next = update(h);
+      try {
+        localStorage.setItem(historyKey(t.circle), JSON.stringify(next));
+      } catch {
+        // private mode: history lasts for this page only
+      }
+      return next;
+    });
+  }
+
   function accept(next: TutorialState, doneTx: Sent | null) {
+    // The step's Fuji record comes back with the next state: keep it with your transaction.
+    const record = next.lastChange?.record;
+    if (doneTx && record)
+      saveHistory((h) =>
+        h.map((x) => (x.hash === doneTx.hash ? { ...x, record } : x)),
+      );
     setLastTx(doneTx);
     setTx(null);
     setSentFor(null);
@@ -288,15 +320,7 @@ export function Tutorial({
             hash: done.hash,
             block: done.block.toString(),
           };
-          setHistory((h) => {
-            const next = [item, ...h.filter((x) => x.hash !== done.hash)];
-            try {
-              localStorage.setItem(historyKey(t.circle), JSON.stringify(next));
-            } catch {
-              // private mode: history lasts for this page only
-            }
-            return next;
-          });
+          saveHistory((h) => [item, ...h.filter((x) => x.hash !== done.hash)]);
           setAnnounce(
             `Confirmed in block ${done.block}. ${step.waitNote ?? ""}`,
           );
@@ -391,7 +415,9 @@ export function Tutorial({
                 title="Activity"
                 aside={
                   <span className="text-right text-xs text-ink-2">
-                    Practice chain — not on a public explorer
+                    {activity.some((a) => a.record)
+                      ? "Each step is also recorded on Avalanche Fuji"
+                      : "Practice chain — not on a public explorer"}
                   </span>
                 }
               >

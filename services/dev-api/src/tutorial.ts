@@ -5,6 +5,7 @@ import {
   encodeAbiParameters,
   maxUint256,
   parseEventLogs,
+  zeroHash,
 } from "viem";
 import { mnemonicToAccount, type PrivateKeyAccount } from "viem/accounts";
 import { BIG_GAS, type Chain } from "./chain.ts";
@@ -62,7 +63,21 @@ export type Change = {
   note: string | null;
   /** The real transactions the server sent during the step, in order (practice members, admin, settlements). */
   txs?: { label: string; hash: `0x${string}` }[];
+  /** The step's public record on Avalanche Fuji (KuberPracticeLog), null when there is none. */
+  record?: PublicRecord | null;
 };
+export type PublicRecord = {
+  chain: "Avalanche Fuji";
+  hash: `0x${string}`;
+  url: string;
+};
+/** Sends one step's record to the Fuji server; resolves to the Fuji transaction hash, or null. */
+export type Recorder = (entry: {
+  user: Address;
+  practiceCircle: Address;
+  step: string;
+  actions: { label: string; practiceTx: `0x${string}` }[];
+}) => Promise<`0x${string}` | null>;
 type Action = {
   label: string;
   target: "usdc" | "circle" | "factory";
@@ -104,6 +119,8 @@ export type Tutorial = {
   path: Choice | null;
   createArgs: Action["args"] | null;
   createFrom: bigint;
+  /** Last block of the previous step: the user's own transaction for a step is after it. */
+  mark: bigint;
 };
 
 type Engine = ReturnType<typeof engine>;
@@ -1073,8 +1090,64 @@ export type Tutorials = ReturnType<typeof tutorials>;
 export const tutorials = (
   c: Chain,
   readFacts: (circle: Address, u: Address | null) => Promise<Facts>,
+  recorder: Recorder | null = null,
 ) => {
   const e = engine(c);
+  /** Fuji records: lowercase practice-chain tx hash -> the record of the step it belongs to. */
+  const records = new Map<string, PublicRecord>();
+  const cut = (s: string) => (s.length > 120 ? `${s.slice(0, 119)}…` : s);
+  /** The user's latest transaction since the previous step (a few blocks on Anvil), else null. */
+  const userTx = async (t: Tutorial) => {
+    const latest = await c.pub.getBlockNumber({ cacheTime: 0 });
+    for (let b = latest; b > t.mark && latest - b < 50n; b--) {
+      const blk = await c.pub.getBlock({
+        blockNumber: b,
+        includeTransactions: true,
+      });
+      const tx = blk.transactions.find(
+        (x) => x.from.toLowerCase() === t.user.toLowerCase(),
+      );
+      if (tx) return tx.hash;
+    }
+    return null;
+  };
+  /** One Fuji record per finished step; 4 s at most, and any failure just means no record. */
+  const record = async (
+    t: Tutorial,
+    circle: Address,
+    title: string,
+    own: `0x${string}` | null,
+    change: Change,
+  ) => {
+    if (!recorder) return;
+    const actions = [
+      ...(own ? [{ label: cut(title), practiceTx: own }] : []),
+      ...(change.txs ?? []).map((x) => ({
+        label: cut(x.label),
+        practiceTx: x.hash,
+      })),
+    ].slice(0, 20);
+    if (actions.length === 0)
+      actions.push({ label: cut(title), practiceTx: zeroHash });
+    const hash = await Promise.race([
+      recorder({
+        user: t.user,
+        practiceCircle: circle,
+        step: cut(title),
+        actions,
+      }),
+      new Promise<null>((ok) => setTimeout(() => ok(null), 4_000).unref()),
+    ]).catch(() => null);
+    if (!hash) return;
+    const r: PublicRecord = {
+      chain: "Avalanche Fuji",
+      hash,
+      url: `https://testnet.snowtrace.io/tx/${hash}`,
+    };
+    change.record = r;
+    for (const a of actions)
+      if (a.practiceTx !== zeroHash) records.set(a.practiceTx.toLowerCase(), r);
+  };
   const { abis } = c;
   const fixedParams = async () => ({
     contribution: 100n * USDC,
@@ -1172,6 +1245,7 @@ export const tutorials = (
       path: null,
       createArgs: null,
       createFrom: 0n,
+      mark: await c.pub.getBlockNumber({ cacheTime: 0 }),
     };
   };
 
@@ -1238,7 +1312,8 @@ export const tutorials = (
   /** Verifies the user's action, runs the server's part, moves on. One run per user at a time; a failure does not advance. */
   const next = (t: Tutorial, stepId?: string, choice?: Choice) => {
     if (t.running) return t.running as Promise<TutorialState>;
-    const run = c.locked(async () => {
+    let done: { title: string; own: `0x${string}` | null } | null = null;
+    const locked = c.locked(async () => {
       const s = STEPS[t.stepIndex];
       const f = await readFacts(t.circle, t.user);
       // A repeated click for a step that already finished: nothing to do.
@@ -1246,6 +1321,8 @@ export const tutorials = (
         return view(t, f);
       const missing = s.check?.(f, t);
       if (missing) throw new HttpError(409, missing);
+      const own =
+        recorder && s.action ? await userTx(t).catch(() => null) : null;
       e.begin();
       try {
         if (s.id === "start") {
@@ -1273,10 +1350,22 @@ export const tutorials = (
         throw err;
       }
       const a = await readFacts(t.circle, t.user);
-      t.lastChange = { ...s.change(t.before, a, t), txs: e.end() };
+      t.lastChange = {
+        ...s.change(t.before, a, t),
+        txs: e.end(),
+        record: null,
+      };
       t.before = a;
+      t.mark = await c.pub.getBlockNumber({ cacheTime: 0 });
       t.stepIndex = after(t, t.stepIndex);
+      done = { title: s.title, own };
       return view(t, a);
+    });
+    // Outside the chain lock: the Fuji record never holds up the practice chain (4 s at most).
+    const run = locked.then(async (v) => {
+      if (done && v.lastChange)
+        await record(t, v.circle, done.title, done.own, v.lastChange);
+      return v;
     });
     t.running = run;
     return run.finally(() => {
@@ -1290,5 +1379,6 @@ export const tutorials = (
     factory: c.factory,
     view: async (t: Tutorial) => view(t, await readFacts(t.circle, t.user)),
     next,
+    records,
   };
 };

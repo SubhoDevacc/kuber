@@ -2,6 +2,7 @@
 // Time is global on a chain and the tutorial moves it, so users are isolated by giving each their own Anvil.
 // Boot: deploy once to a template Anvil, dump its state, and start every user chain from that file.
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import {
   copyFileSync,
   existsSync,
@@ -68,6 +69,16 @@ const SECRETS = [
 ] as const;
 const childEnv: NodeJS.ProcessEnv = { ...process.env };
 for (const k of SECRETS) delete childEnv[k];
+// Tutorial step records: per-user dev-apis post each step to the Fuji child's /internal/practice-log
+// (loopback only, never forwarded by this host) with this boot's random token.
+const INTERNAL_TOKEN = randomBytes(32).toString("hex");
+const APP_PORT = await freePort();
+delete childEnv.PRACTICE_LOG_URL;
+delete childEnv.INTERNAL_TOKEN;
+if (process.env.FUJI_ADMIN_PRIVATE_KEY) {
+  childEnv.INTERNAL_TOKEN = INTERNAL_TOKEN;
+  childEnv.PRACTICE_LOG_URL = `http://127.0.0.1:${APP_PORT}/internal/practice-log`;
+}
 
 // Each child leads its own process group, so one group signal also stops what it started.
 const all = new Set<ChildProcess>();
@@ -162,12 +173,18 @@ const dep = JSON.parse(readFileSync(DEPLOYMENT, "utf8")) as {
 const APP_OFF = "The real app is not set up on this server";
 let appUrl: string | null = null;
 const startApp = async () => {
-  const port = await freePort();
+  // One fixed port for this boot: the per-user dev-apis were given PRACTICE_LOG_URL with it.
+  const port = APP_PORT;
   const url = `http://127.0.0.1:${port}`;
   const child = launch(
     process.execPath,
     ["services/dev-api/src/fuji-server.ts"],
-    { ...process.env, APP_PORT: String(port), APP_HOST: "127.0.0.1" },
+    {
+      ...process.env,
+      APP_PORT: String(port),
+      APP_HOST: "127.0.0.1",
+      INTERNAL_TOKEN,
+    },
   );
   child.on("exit", (code) => {
     appUrl = null;
@@ -289,6 +306,9 @@ app.all("/api/app/*", limit, async (c) => {
       503,
     );
   const url = new URL(c.req.url);
+  // Only the app's own routes; never the Fuji child's /internal/* (no token header is forwarded either).
+  if (!url.pathname.startsWith("/api/app/"))
+    return c.json({ error: "There is nothing here." }, 404);
   const hasBody = c.req.method !== "GET" && c.req.method !== "HEAD";
   const auth = c.req.header("authorization");
   const res = await fetch(`${appUrl}${url.pathname}${url.search}`, {

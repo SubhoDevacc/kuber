@@ -5,7 +5,12 @@ import { z } from "zod";
 import { activity } from "./activity.ts";
 import { connect, type Env } from "./chain.ts";
 import { readFacts, toSnapshot } from "./snapshot.ts";
-import { HttpError, type Tutorial, tutorials } from "./tutorial.ts";
+import {
+  HttpError,
+  type Recorder,
+  type Tutorial,
+  tutorials,
+} from "./tutorial.ts";
 
 type User = {
   address: Address;
@@ -34,7 +39,33 @@ export const createApp = async (env: Env) => {
   const c = await connect(env);
   const { abis } = c;
   const facts = (circle: Address, u: Address | null) => readFacts(c, circle, u);
-  const tut = tutorials(c, facts);
+  // Tutorial step records on Fuji (hosted mode): posted to the Fuji server's internal route; never required.
+  const url = env.PRACTICE_LOG_URL;
+  const token = env.INTERNAL_TOKEN;
+  const recorder: Recorder | null =
+    url && token
+      ? async (entry) => {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-internal-token": token,
+            },
+            body: JSON.stringify(entry),
+            signal: AbortSignal.timeout(4_000),
+          });
+          if (!res.ok) return null;
+          const { hash } = (await res.json()) as { hash?: unknown };
+          return typeof hash === "string" && /^0x[0-9a-fA-F]{64}$/.test(hash)
+            ? (hash as `0x${string}`)
+            : null;
+        }
+      : null;
+  const tut = tutorials(c, facts, recorder);
+  const withRecord = <T extends { txHash: string }>(r: T) => ({
+    ...r,
+    record: tut.records.get(r.txHash.toLowerCase()) ?? null,
+  });
   const users = new Map<string, User>();
   const grant = BigInt(env.WELCOME_GRANT_MUSDC) * 1_000_000n;
   // Anvil has no getLogs range limit: one big chunk.
@@ -279,7 +310,7 @@ export const createApp = async (env: Env) => {
     const address = getAddress(raw);
     const me = ctx.get("user").address;
     const rows = await history.forCircle(address, namesOf(address, me));
-    return ctx.json(rows.map(({ actor: _a, ...r }) => r));
+    return ctx.json(rows.map(({ actor: _a, ...r }) => withRecord(r)));
   });
   app.get("/activity", async (ctx) => {
     const u = ctx.get("user");
@@ -296,7 +327,7 @@ export const createApp = async (env: Env) => {
         circle,
         namesOf(circle, u.address),
       ))
-        if (actor === key) out.push({ ...r, circle: name });
+        if (actor === key) out.push({ ...withRecord(r), circle: name });
     }
     out.sort((x, y) => y.block - x.block);
     return ctx.json(out.slice(0, 200));

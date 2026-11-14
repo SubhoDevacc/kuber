@@ -1,12 +1,21 @@
 import { ArrowRight, Check, TriangleAlert } from "lucide-react";
 import { type TxChain, TxHash } from "../app/TxDetails";
 import { shortHash } from "../lib/wallet";
-import type { Hex, LastChange } from "../types";
+import type { Hex, LastChange, PublicRecord } from "../types";
+import { PublicRecordLine } from "./PublicRecordLine";
 
 /** A hash that opens the details pop-up when the chain is known; plain text otherwise. */
-function Hash({ hash, chain }: { hash: Hex; chain?: TxChain }) {
+function Hash({
+  hash,
+  chain,
+  record,
+}: {
+  hash: Hex;
+  chain?: TxChain;
+  record?: PublicRecord | null;
+}) {
   return chain ? (
-    <TxHash hash={hash} chain={chain} />
+    <TxHash hash={hash} chain={chain} record={record} />
   ) : (
     <span className="num">{shortHash(hash)}</span>
   );
@@ -44,7 +53,8 @@ export function ChangeCard({
       </h3>
       {tx && (
         <p className="text-xs text-ink-2">
-          Your transaction <Hash hash={tx.hash} chain={chain} /> confirmed
+          Your transaction{" "}
+          <Hash hash={tx.hash} chain={chain} record={change.record} /> confirmed
           {tx.block > 0n ? ` in block ${tx.block}` : ""}.
         </p>
       )}
@@ -89,20 +99,30 @@ export function ChangeCard({
       {change.note && (
         <p className="mt-2 text-sm leading-snug text-ink">{change.note}</p>
       )}
-      {change.txs && change.txs.length > 0 && (
+      {((change.txs && change.txs.length > 0) || change.record) && (
         <div className="mt-2 border-t border-accent/40 pt-2">
-          <p className="text-xs font-semibold text-warn">On the chain</p>
-          <ul className="mt-1 grid gap-1">
-            {change.txs.map((t) => (
-              <li
-                key={t.hash}
-                className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm"
-              >
-                <span className="text-ink">{t.label}</span>
-                <Hash hash={t.hash} chain={chain} />
-              </li>
-            ))}
-          </ul>
+          {change.txs && change.txs.length > 0 && (
+            <>
+              <p className="text-xs font-semibold text-warn">On the chain</p>
+              <ul className="mt-1 grid gap-1">
+                {change.txs.map((t) => (
+                  <li
+                    key={t.hash}
+                    className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm"
+                  >
+                    <span className="text-ink">{t.label}</span>
+                    <Hash hash={t.hash} chain={chain} record={change.record} />
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {change.record && (
+            <PublicRecordLine
+              record={change.record}
+              className={change.txs && change.txs.length > 0 ? "mt-1.5" : ""}
+            />
+          )}
         </div>
       )}
     </section>

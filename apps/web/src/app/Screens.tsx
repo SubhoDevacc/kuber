@@ -260,7 +260,7 @@ function Onboard({
   return (
     <div className="mx-auto flex min-h-dvh max-w-xl flex-col px-4 py-5 sm:px-6">
       <Wordmark />
-      <main className="flex flex-1 flex-col justify-center py-8">
+      <main className="app-card my-auto rounded-[2rem] border border-line bg-surface p-6 sm:p-8">
         <p className="text-sm font-semibold text-brand">
           {step < 3 ? `Step ${step} of 2` : "All set"}
         </p>

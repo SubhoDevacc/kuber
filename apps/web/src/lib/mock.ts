@@ -699,7 +699,7 @@ function tutorial(saved: Saved, address: Hex): TutorialState {
       action: step.action,
       waitNote: step.waitNote,
     },
-    lastChange: last,
+    lastChange: last ? { ...last, record: null } : null,
     snapshot: snapshot(m),
   };
 }

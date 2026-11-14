@@ -9,6 +9,7 @@ export const kuberContracts = [
   "KuberRegistry",
   "KuberFactory",
   "KuberCircle",
+  "KuberPracticeLog",
 ] as const;
 
 export const kuberFoundry = foundry({
